@@ -268,6 +268,8 @@ details.blk-card summary{cursor:pointer}
 .submit-box.done{border-color:var(--border)!important;background:var(--surface)!important}
 .submit-box .btn:disabled{opacity:.6;cursor:wait}
 @media(max-width:900px){.vid-grid{grid-template-columns:1fr}}
+.pf-grid select{width:100%;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;background:#fff}
+.pf-err{color:var(--red);font-size:12px;min-height:16px;margin:-6px 0 8px}
 </style>
 </head>
 <body>
@@ -311,8 +313,16 @@ const D = {"title": "공주 알밤이 만들어지기까지의 생태계 흐름"
   function sget(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return mem[k] || d; } }
   function sset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } }
   function fresh() { return { v: 1, inputs: {}, quiz: {}, assess: {}, steps: {}, videos: {}, visited: [], time: {}, last: 'p1', started: Date.now(), updated: Date.now() }; }
-  var S = sget(KEY, null) || fresh();
+  var SCHOOLS = CFG.schools || ['공주고등학교', '공주여자고등학교'];
+  function pkey(p) { return p ? [p.school, p.grade, p.cls, p.num, p.name].join('|') : ''; }
+  function keyFor(p) { return 'aidt:v1:' + LID + (p ? ':' + pkey(p) : ''); }
+  var LEGACY = 'aidt:v1:' + LID;
   var P = sget(PKEY, null);
+  if (P && (!P.school || !P.grade || !P.cls || !P.num || !P.name)) P = null;   // 예전 형식·미완성 정보는 다시 입력
+  KEY = keyFor(P);
+  var S = sget(KEY, null);
+  if (!S && P) { S = sget(LEGACY, null); if (S) { try { localStorage.removeItem(LEGACY); } catch (e) { } } }
+  S = S || fresh();
   S.videos = S.videos || {};
   var saveTimer = null;
   function save(immediate) {
@@ -622,7 +632,7 @@ const D = {"title": "공주 알밤이 만들어지기까지의 생태계 흐름"
     }
     fetch(SUBMIT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' })
       .then(function (r) { return r.json(); })
-      .then(function (j) { done(!!j.ok, j.error === 'closed' ? '선생님이 제출을 마감했어요.' : ''); })
+      .then(function (j) { done(!!j.ok, j.error === 'closed' ? '선생님이 제출을 마감했어요.' : ''); if (j.ok && j.merged && j.summary && j.summary.progress > summary().progress) setTimeout(function () { toast('🔗 다른 기기에서 제출한 기록과 합쳐서 저장했어요 (진행률 ' + j.summary.progress + '%).'); }, 2800); })
       .catch(function () {
         fetch(SUBMIT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body })
           .then(function () { done(true); }, function () { done(false); });
@@ -633,22 +643,41 @@ const D = {"title": "공주 알밤이 만들어지기까지의 생태계 흐름"
   function openProfile(after) {
     var p = P || {};
     var ov = document.createElement('div'); ov.className = 'modal-ov';
-    ov.innerHTML = '<div class="modal"><h3>👋 학습자 정보</h3><p class="muted small">학습 기록에 함께 저장되어 선생님께 제출할 때 사용됩니다. 이 기기의 모든 차시에 공통으로 적용돼요.</p>' +
-      '<div class="pf-grid"><label>학교<input id="pf_school" value="' + esc(p.school || '') + '" placeholder="예: 공주고등학교"></label>' +
-      '<label>학년<input id="pf_grade" inputmode="numeric" value="' + esc(p.grade || '') + '" placeholder="1"></label>' +
-      '<label>반<input id="pf_cls" inputmode="numeric" value="' + esc(p.cls || '') + '" placeholder="3"></label>' +
-      '<label>번호<input id="pf_num" inputmode="numeric" value="' + esc(p.num || '') + '" placeholder="12"></label>' +
+    var opt = function (arr, v, ph) { return '<option value="">' + ph + '</option>' + arr.map(function (x) { return '<option' + (String(x) === String(v) ? ' selected' : '') + '>' + x + '</option>'; }).join(''); };
+    ov.innerHTML = '<div class="modal"><h3>👋 학습자 정보</h3><p class="muted small">' + (P ? '다른 학생으로 바꾸면 그 학생의 학습 기록이 따로 열립니다.' : '선생님께 제출할 때 사용됩니다. 이 기기의 모든 차시에 공통으로 적용돼요.') + '</p>' +
+      '<div class="pf-grid"><label class="full">학교<select id="pf_school">' + opt(SCHOOLS, p.school, '학교 선택') + '</select></label>' +
+      '<label>학년<select id="pf_grade">' + opt([1, 2, 3], p.grade, '선택') + '</select></label>' +
+      '<label>반<input id="pf_cls" inputmode="numeric" maxlength="2" value="' + esc(p.cls || '') + '" placeholder="3"></label>' +
+      '<label>번호<input id="pf_num" inputmode="numeric" maxlength="2" value="' + esc(p.num || '') + '" placeholder="12"></label>' +
       '<label class="full">이름<input id="pf_name" value="' + esc(p.name || '') + '" placeholder="홍길동"></label></div>' +
-      '<div class="modal-btns"><button class="btn btn-o" id="pf_skip">나중에</button><button class="btn btn-p" id="pf_ok">저장하고 시작</button></div></div>';
+      '<div class="pf-err" id="pf_err"></div>' +
+      '<div class="modal-btns">' + (P ? '<button class="btn btn-o" id="pf_skip">취소</button>' : '') + '<button class="btn btn-p" id="pf_ok">' + (P ? '저장' : '저장하고 시작') + '</button></div></div>';
     document.body.appendChild(ov);
-    setTimeout(function () { var n = document.getElementById('pf_name'); if (n) n.focus(); }, 50);
-    ov.querySelector('#pf_skip').onclick = function () { ov.remove(); };
+    var sk = ov.querySelector('#pf_skip'); if (sk) sk.onclick = function () { ov.remove(); };
+    ['pf_cls', 'pf_num'].forEach(function (id) { var el = ov.querySelector('#' + id); el.addEventListener('input', function () { el.value = el.value.replace(/\D/g, ''); }); });
     ov.querySelector('#pf_ok').onclick = function () {
       var g = function (id) { return document.getElementById(id).value.trim(); };
-      if (!g('pf_name')) { document.getElementById('pf_name').focus(); toast('이름을 입력해 주세요.'); return; }
-      P = { school: g('pf_school'), grade: g('pf_grade'), cls: g('pf_cls'), num: g('pf_num'), name: g('pf_name') };
-      sset(PKEY, P); ov.remove(); renderWho(); if (cur === 'report') render('report'); if (after) after();
+      var miss = [['pf_school', '학교'], ['pf_grade', '학년'], ['pf_cls', '반'], ['pf_num', '번호'], ['pf_name', '이름']].filter(function (x) { return !g(x[0]); });
+      if (miss.length) { document.getElementById('pf_err').textContent = miss.map(function (x) { return x[1]; }).join(', ') + '을(를) 입력해 주세요.'; document.getElementById(miss[0][0]).focus(); return; }
+      var np = { school: g('pf_school'), grade: g('pf_grade'), cls: String(+g('pf_cls')), num: String(+g('pf_num')), name: g('pf_name').replace(/\s+/g, '') };
+      ov.remove(); switchStudent(np); if (after) after();
     };
+  }
+  // 학생별로 기록을 따로 보관: 정보가 바뀌면 그 학생의 기록을 연다
+  function switchStudent(np) {
+    tick(); sset(KEY, S);
+    var wasAnon = !P, same = P && pkey(P) === pkey(np);
+    P = np; sset(PKEY, P);
+    if (!same) {
+      var oldKey = KEY; KEY = keyFor(P);
+      var ex = sget(KEY, null);
+      if (ex) S = ex;
+      else if (wasAnon) { try { localStorage.removeItem(oldKey); } catch (e) { } }   // 정보 입력 전에 한 활동은 이 학생 기록으로
+      else S = fresh();
+      S.videos = S.videos || {};
+      save(true); buildNav(); renderWho(); render(pageById(S.last) ? S.last : 'p1');
+      if (!wasAnon) toast('👤 ' + profileText(P) + ' 학생의 기록을 열었어요.');
+    } else { renderWho(); if (cur === 'report') render('report'); }
   }
   function renderWho() { var w = document.getElementById('who'); if (w) w.innerHTML = P ? '👤 ' + esc(profileText(P)) + ' <a data-act="profile">수정</a>' : '👤 <a data-act="profile">학습자 정보 입력</a>'; }
 

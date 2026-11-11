@@ -26,21 +26,27 @@ function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     if (ss.getSheetByName(CLOSE_TAB)) return out_({ ok: false, error: 'closed' });
-    const r = JSON.parse(e.postData.contents);
+    let r = JSON.parse(e.postData.contents);
     if (r.format !== 'gongju-aidt-v1' || !r.lesson || !r.student) return out_({ ok: false, error: 'format' });
-    const st = r.student, s = r.summary || {};
+    const st = r.student;
     const key = [r.lesson.id, st.school, st.grade, st.cls, st.num, st.name].join('|');
     const now = new Date();
 
-    // 1) 제출기록: 학생·차시당 1행(다시 제출하면 덮어쓰기)
+    // 1) 제출기록: 학생·차시당 1행. 다시 제출하거나 다른 기기에서 제출하면 이전 기록과 합칩니다.
     const sh = sheet_(ss, SHEET_SUMMARY, SUMMARY_HEAD);
+    const idx = findRow_(sh, key);
+    if (idx > 0) {
+      let old = null;
+      try { old = JSON.parse(sh.getRange(idx, SUMMARY_HEAD.indexOf('원본데이터') + 1).getValue()); } catch (x) { }
+      if (old) r = merge_(old, r);
+    }
+    const s = r.summary || {};
     const row = [now, key, st.school, st.grade, st.cls, st.num, st.name,
       r.lesson.subject, r.lesson.code, r.lesson.title,
       s.progress, s.score, s.level, s.self, Math.round((s.timeSec || 0) / 60),
       (s.videosWatched || 0) + '/' + (s.videosTotal || 0),
       (r.quiz || []).map(function (q) { return q.num + ':' + (!q.done ? '-' : q.firstCorrect ? 'O' : q.correct ? '△' : 'X'); }).join(' '),
       raw_(r)];
-    const idx = findRow_(sh, key);
     if (idx > 0) sh.getRange(idx, 1, 1, row.length).setValues([row]);
     else sh.appendRow(row);
 
@@ -56,7 +62,7 @@ function doPost(e) {
       .map(function (x) { return [now, key, sid, st.name, r.lesson.subject, r.lesson.code, x.page, x.prompt, x.answer]; });
     if (rows.length) rs.getRange(rs.getLastRow() + 1, 1, rows.length, rows[0].length).setValues(rows);
 
-    return out_({ ok: true });
+    return out_({ ok: true, merged: idx > 0, summary: s });
   } catch (err) {
     return out_({ ok: false, error: String(err) });
   } finally {
@@ -74,6 +80,46 @@ function doGet(e) {
   const records = [];
   vals.forEach(function (v) { if (v[0]) { try { records.push(JSON.parse(v[0])); } catch (x) { } } });
   return out_({ ok: true, records: records });
+}
+
+// 이전 제출(a)과 새 제출(b)을 합치기
+//  - 퀴즈: 먼저 완료한 결과를 유지(다른 기기에서 다시 풀어도 처음 결과가 기록됨)
+//  - 서술형·자기진단: 새 제출이 비어 있으면 이전 내용 유지
+//  - 영상: 어느 기기에서든 본 적 있으면 시청
+//  - 학습 시간: 페이지별로 더 긴 값
+function merge_(a, b) {
+  const r = JSON.parse(JSON.stringify(b));
+  const byKey = function (arr, k) { const m = {}; (arr || []).forEach(function (x) { m[x[k]] = x; }); return m; };
+  const aq = byKey(a.quiz, 'num');
+  r.quiz = (b.quiz || []).map(function (q) { const o = aq[q.num]; return o && o.done ? o : q; });
+  const ar = byKey(a.responses, 'key');
+  r.responses = (b.responses || []).map(function (x) { const o = ar[x.key]; return !x.answer && o && o.answer ? o : x; });
+  const as = byKey(a.selfAssessment, 'item');
+  r.selfAssessment = (b.selfAssessment || []).map(function (x) { const o = as[x.item]; return x.score == null && o && o.score != null ? o : x; });
+  const av = byKey(a.videos, 'id');
+  r.videos = (b.videos || []).map(function (v) { return { n: v.n, id: v.id, watched: !!(v.watched || (av[v.id] && av[v.id].watched)) }; });
+  const at = byKey(a.timePerPage, 'page');
+  r.timePerPage = (b.timePerPage || []).map(function (t) { return { page: t.page, sec: Math.max(t.sec || 0, at[t.page] ? at[t.page].sec || 0 : 0) }; });
+  r.summary = summary_(r);
+  return r;
+}
+function summary_(r) {
+  const Q = r.quiz || [], R = r.responses || [], A = r.selfAssessment || [], V = r.videos || [];
+  const done = Q.filter(function (q) { return q.done; }).length + R.filter(function (x) { return String(x.answer || '').trim(); }).length +
+    A.filter(function (x) { return x.score != null; }).length + V.filter(function (v) { return v.watched; }).length;
+  const total = Q.length + R.length + A.length + V.length;
+  let answered = 0, first = 0, second = 0, wrong = 0;
+  Q.forEach(function (q) { if (!q.done) return; answered++; if (q.firstCorrect) first++; else if (q.correct) second++; else wrong++; });
+  const score = answered ? Math.round((first + second * 0.5) / answered * 100) : null;
+  const prov = score == null ? '-' : score >= 80 ? '상' : score >= 50 ? '중' : '하';
+  const rated = A.filter(function (x) { return x.score != null; });
+  return {
+    progress: total ? Math.round(done / total * 100) : 0, done: done, total: total, quizTotal: Q.length, answered: answered, prov: prov,
+    first: first, second: second, wrong: wrong, score: score, level: answered === 0 ? '-' : answered < Q.length ? '미완료' : prov,
+    self: rated.length ? Math.round(rated.reduce(function (s, x) { return s + x.score; }, 0) / (rated.length * 2) * 100) : null,
+    timeSec: (r.timePerPage || []).reduce(function (s, t) { return s + (t.sec || 0); }, 0),
+    videosWatched: V.filter(function (v) { return v.watched; }).length, videosTotal: V.length
+  };
 }
 
 // 셀 한 칸 최대 50,000자 제한 대비
