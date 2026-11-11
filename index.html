@@ -77,8 +77,10 @@ function draw(){
   const avg = scores.length? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : '–';
   document.getElementById('overall').innerHTML =
     `<div><b>${started} / ${ls.length}</b><span>시작한 차시</span></div><div><b>${done}</b><span>모든 활동 완료</span></div><div><b>${avg}${scores.length?'점':''}</b><span>평균 퀴즈 성취도</span></div>`;
-  document.getElementById('who').innerHTML = P ? '👤 '+esc([P.school,P.grade&&P.grade+'학년',P.cls&&P.cls+'반',P.num&&P.num+'번',P.name].filter(Boolean).join(' ')) : '👤 학습자 정보는 차시를 열면 입력할 수 있어요';
+  document.getElementById('who').innerHTML = P && P.teacher ? '👩‍🏫 <b>교사 모드</b> · <a onclick="setTeacher(false)">학생 모드로</a>'
+    : (P ? '👤 '+esc([P.school,P.grade&&P.grade+'학년',P.cls&&P.cls+'반',P.num&&P.num+'번',P.name].filter(Boolean).join(' ')) : '👤 학습자 정보는 차시를 열면 입력할 수 있어요') + '<br><a onclick="setTeacher(true)">👩‍🏫 선생님이신가요? 교사 모드로 보기</a>';
 }
+function setTeacher(on){ try{ if(on) localStorage.setItem('aidt:v1:profile', JSON.stringify({teacher:true,name:'교사'})); else localStorage.removeItem('aidt:v1:profile'); }catch(e){} draw(); }
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{subj=t.dataset.s;history.replaceState(null,'','#'+subj);draw()});
 window.addEventListener('pageshow',draw);
 draw();

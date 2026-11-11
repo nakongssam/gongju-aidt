@@ -275,6 +275,13 @@ details.blk-card summary{cursor:pointer}
 .input-group textarea:hover,.input-group input[type=text]:hover,.pred-row input:hover{border-color:#a8a49a!important}
 .input-group textarea:focus,.input-group input[type=text]:focus,.pred-row input:focus,.pf-grid input:focus,.pf-grid select:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px var(--accent-lt)}
 .input-group textarea::placeholder,.input-group input::placeholder,.pred-row input::placeholder{color:#b3afa6}
+/* 교사 모드 */
+.pf-teacher{display:block;width:100%;margin-top:14px;padding:10px 12px;border:1px dashed var(--border);border-radius:var(--radius-sm);background:var(--surface-alt,#fafaf7);font-family:inherit;font-size:13px;color:var(--txt2);cursor:pointer;text-align:center}
+.pf-teacher:hover{border-color:var(--accent);color:var(--accent-dk)}
+.ans-tog{display:inline-flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;cursor:pointer}
+.quiz-opt.t-correct{border-color:var(--accent)!important;background:var(--accent-lt)!important}
+.t-ans{margin-top:10px;padding:9px 12px;border-radius:var(--radius-sm);background:#fff8e6;border:1px solid #f5d98b;font-size:13px;font-weight:600}
+.t-ans .muted{font-weight:400}
 </style>
 </head>
 <body>
@@ -319,11 +326,15 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
   function sset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } }
   function fresh() { return { v: 1, inputs: {}, quiz: {}, assess: {}, steps: {}, videos: {}, visited: [], time: {}, last: 'p1', started: Date.now(), updated: Date.now() }; }
   var SCHOOLS = CFG.schools || ['공주고등학교', '공주여자고등학교'];
-  function pkey(p) { return p ? [p.school, p.grade, p.cls, p.num, p.name].join('|') : ''; }
+  function pkey(p) { return !p ? '' : p.teacher ? 'teacher' : [p.school, p.grade, p.cls, p.num, p.name].join('|'); }
+  var TEACHER = { teacher: true, name: '교사' };
+  function isT() { return !!(P && P.teacher); }
+  var SHOW_ANS = sget('aidt:v1:showAns', true);
   function keyFor(p) { return 'aidt:v1:' + LID + (p ? ':' + pkey(p) : ''); }
   var LEGACY = 'aidt:v1:' + LID;
   var P = sget(PKEY, null);
-  if (P && (!P.school || !P.grade || !P.cls || !P.num || !P.name)) P = null;   // 예전 형식·미완성 정보는 다시 입력
+  if (/[?&]mode=teacher/.test(location.search)) { P = TEACHER; sset(PKEY, P); }
+  if (P && !P.teacher && (!P.school || !P.grade || !P.cls || !P.num || !P.name)) P = null;   // 예전 형식·미완성 정보는 다시 입력
   KEY = keyFor(P);
   var S = sget(KEY, null);
   if (!S && P) { S = sget(LEGACY, null); if (S) { try { localStorage.removeItem(LEGACY); } catch (e) { } } }
@@ -469,12 +480,14 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
     h += b.opts.map(function (o, i) {
       var cls = '', mark = CIRC[i] || (i + 1);
       if (tries.indexOf(i) >= 0 && i !== b.ans) { cls = ' wrong'; mark = '✗'; }
+      if (isT() && SHOW_ANS && !done && i === b.ans) cls = ' t-correct';
       if (done && i === b.ans) { cls = ' correct'; mark = '✓'; }
       var dis = done || tries.indexOf(i) >= 0 ? ' disabled' : '';
       return '<div class="quiz-opt' + cls + dis + '" data-qk="' + key + '" data-qi="' + i + '"><span class="oc">' + mark + '</span><span>' + o + '</span></div>';
     }).join('');
     var concept = m.concept && pageById(m.concept);
     var clink = concept ? '<a class="concept-link" data-go="' + concept.id + '">📖 관련 개념 다시 보기: ' + concept.title + '</a>' : '';
+    if (isT() && SHOW_ANS && !done) h += '<div class="t-ans">👩‍🏫 정답 ' + (CIRC[b.ans] || '') + ' ' + b.opts[b.ans] + '<span class="muted"> · ' + stripOk(b.ok) + '</span></div>';
     if (done && correct) h += '<div class="quiz-fb ok show">' + b.ok + '</div>';
     else if (done) h += '<div class="quiz-fb no show"><b>정답은 ' + (CIRC[b.ans] || '') + ' ' + b.opts[b.ans] + '입니다.</b><br>💡 ' + stripOk(b.ok) + '</div>' + clink;
     else if (tries.length) h += '<div class="quiz-fb no show"><b>다시 생각해 봅시다.</b> ' + safeHint(b) + '</div>' + clink;
@@ -592,7 +605,8 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
     }
 
     var sub = S.submittedAt ? new Date(S.submittedAt) : null;
-    if (SUBMIT_URL) h += '<div class="blk blk-card submit-box' + (sub ? ' done' : '') + '"><div><b>' + (sub ? '✅ 선생님께 제출했어요' : '📤 학습 결과를 선생님께 제출하세요') + '</b><div class="muted small">' + (sub ? '제출 시각 ' + sub.toLocaleString('ko-KR') + ' · 내용을 고쳤다면 다시 제출하세요(최신 기록으로 바뀝니다).' : '버튼을 누르면 선생님의 구글 시트로 바로 전송됩니다.') + '</div></div><button class="btn btn-p" data-act="submit">' + (sub ? '🔁 다시 제출하기' : '📤 선생님께 제출하기') + '</button></div>';
+    if (isT()) h += '<div class="blk blk-card"><b>👩‍🏫 교사 모드</b><div class="muted small">교사 모드에서는 제출 기록이 남지 않습니다. 학생 화면 그대로 확인하시려면 왼쪽 아래에서 학생으로 전환하세요.</div></div>';
+    else if (SUBMIT_URL) h += '<div class="blk blk-card submit-box' + (sub ? ' done' : '') + '"><div><b>' + (sub ? '✅ 선생님께 제출했어요' : '📤 학습 결과를 선생님께 제출하세요') + '</b><div class="muted small">' + (sub ? '제출 시각 ' + sub.toLocaleString('ko-KR') + ' · 내용을 고쳤다면 다시 제출하세요(최신 기록으로 바뀝니다).' : '버튼을 누르면 선생님의 구글 시트로 바로 전송됩니다.') + '</div></div><button class="btn btn-p" data-act="submit">' + (sub ? '🔁 다시 제출하기' : '📤 선생님께 제출하기') + '</button></div>';
     h += '<div class="blk rep-actions"><button class="btn ' + (SUBMIT_URL ? 'btn-o' : 'btn-p') + '" data-act="export">📥 학습 기록 내려받기</button><button class="btn btn-o" data-act="print">🖨️ 인쇄 / PDF 저장</button><button class="btn btn-o" data-act="reset">↺ 처음부터 다시 하기</button></div>' +
       '<p class="muted small">' + (SUBMIT_URL ? '제출 버튼이 작동하지 않으면 학습 기록을 내려받아 선생님께 파일로 제출하세요.' : '내려받은 학습 기록(.json) 파일을 구글 클래스룸 등으로 선생님께 제출하세요.') + ' 선생님은 교사용 대시보드에서 학급 결과를 한눈에 볼 수 있어요. 학습 기록은 이 기기의 브라우저에만 저장됩니다.</p>';
     return h;
@@ -600,7 +614,7 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
   }
 
   /* ---------- 내보내기 ---------- */
-  function profileText(p) { return [p.school, p.grade ? p.grade + '학년' : '', p.cls ? p.cls + '반' : '', p.num ? p.num + '번' : '', p.name].filter(Boolean).join(' '); }
+  function profileText(p) { if (p.teacher) return '교사 모드'; return [p.school, p.grade ? p.grade + '학년' : '', p.cls ? p.cls + '반' : '', p.num ? p.num + '번' : '', p.name].filter(Boolean).join(' '); }
   function buildRecord() {
     var s = summary();
     return {
@@ -624,6 +638,7 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
   }
   var submitting = false;
   function submitRecord(btn) {
+    if (isT()) { toast('교사 모드에서는 제출되지 않아요.'); return; }
     if (!P || !P.name) { openProfile(function () { submitRecord(); }); return; }
     if (submitting) return; submitting = true;
     if (btn) { btn.disabled = true; btn.textContent = '제출 중…'; }
@@ -646,19 +661,21 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
 
   /* ---------- 학습자 정보 ---------- */
   function openProfile(after) {
-    var p = P || {};
+    var p = (P && !P.teacher) ? P : {};
     var ov = document.createElement('div'); ov.className = 'modal-ov';
     var opt = function (arr, v, ph) { return '<option value="">' + ph + '</option>' + arr.map(function (x) { return '<option' + (String(x) === String(v) ? ' selected' : '') + '>' + x + '</option>'; }).join(''); };
-    ov.innerHTML = '<div class="modal"><h3>👋 학습자 정보</h3><p class="muted small">' + (P ? '다른 학생으로 바꾸면 그 학생의 학습 기록이 따로 열립니다.' : '선생님께 제출할 때 사용됩니다. 이 기기의 모든 차시에 공통으로 적용돼요.') + '</p>' +
+    ov.innerHTML = '<div class="modal"><h3>👋 학습자 정보</h3><p class="muted small">' + (P && !P.teacher ? '다른 학생으로 바꾸면 그 학생의 학습 기록이 따로 열립니다.' : '선생님께 제출할 때 사용됩니다. 이 기기의 모든 차시에 공통으로 적용돼요.') + '</p>' +
       '<div class="pf-grid"><label class="full">학교<select id="pf_school">' + opt(SCHOOLS, p.school, '학교 선택') + '</select></label>' +
       '<label>학년<select id="pf_grade">' + opt([1, 2, 3], p.grade, '선택') + '</select></label>' +
       '<label>반<input id="pf_cls" inputmode="numeric" maxlength="2" value="' + esc(p.cls || '') + '" placeholder="3"></label>' +
       '<label>번호<input id="pf_num" inputmode="numeric" maxlength="2" value="' + esc(p.num || '') + '" placeholder="12"></label>' +
       '<label class="full">이름<input id="pf_name" value="' + esc(p.name || '') + '" placeholder="홍길동"></label></div>' +
       '<div class="pf-err" id="pf_err"></div>' +
-      '<div class="modal-btns">' + (P ? '<button class="btn btn-o" id="pf_skip">취소</button>' : '') + '<button class="btn btn-p" id="pf_ok">' + (P ? '저장' : '저장하고 시작') + '</button></div></div>';
+      '<div class="modal-btns">' + (P ? '<button class="btn btn-o" id="pf_skip">취소</button>' : '') + '<button class="btn btn-p" id="pf_ok">' + (P && !P.teacher ? '저장' : '학생으로 시작') + '</button></div>' +
+      (isT() ? '' : '<button class="pf-teacher" id="pf_teacher">👩‍🏫 선생님이신가요? <b>교사 모드로 보기</b> (기록 제출 없음 · 정답 표시)</button>') + '</div>';
     document.body.appendChild(ov);
     var sk = ov.querySelector('#pf_skip'); if (sk) sk.onclick = function () { ov.remove(); };
+    var tb = ov.querySelector('#pf_teacher'); if (tb) tb.onclick = function () { ov.remove(); switchStudent(TEACHER); };
     ['pf_cls', 'pf_num'].forEach(function (id) { var el = ov.querySelector('#' + id); el.addEventListener('input', function () { el.value = el.value.replace(/\D/g, ''); }); });
     ov.querySelector('#pf_ok').onclick = function () {
       var g = function (id) { return document.getElementById(id).value.trim(); };
@@ -681,10 +698,15 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
       else S = fresh();
       S.videos = S.videos || {};
       save(true); buildNav(); renderWho(); render(pageById(S.last) ? S.last : 'p1');
-      if (!wasAnon) toast('👤 ' + profileText(P) + ' 학생의 기록을 열었어요.');
+      if (P.teacher) toast('👩‍🏫 교사 모드로 전환했어요. 퀴즈 정답이 표시됩니다.');
+      else if (!wasAnon) toast('👤 ' + profileText(P) + ' 학생의 기록을 열었어요.');
     } else { renderWho(); if (cur === 'report') render('report'); }
   }
-  function renderWho() { var w = document.getElementById('who'); if (w) w.innerHTML = P ? '👤 ' + esc(profileText(P)) + ' <a data-act="profile">수정</a>' : '👤 <a data-act="profile">학습자 정보 입력</a>'; }
+  function renderWho() {
+    var w = document.getElementById('who'); if (!w) return;
+    if (isT()) w.innerHTML = '👩‍🏫 <b>교사 모드</b> <a data-act="profile">학생으로 전환</a><br><label class="ans-tog"><input type="checkbox" data-act="answers"' + (SHOW_ANS ? ' checked' : '') + '> 퀴즈 정답·해설 표시</label>';
+    else w.innerHTML = P ? '👤 ' + esc(profileText(P)) + ' <a data-act="profile">수정</a>' : '👤 <a data-act="profile">학습자 정보 입력</a>';
+  }
 
   /* ---------- 화면 ---------- */
   var cur = null, pageStart = Date.now();
@@ -754,6 +776,7 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
     if (t.classList.contains('flip-card')) { t.classList.toggle('flipped'); return; }
     var a = t.dataset.act;
     if (a === 'profile') openProfile();
+    if (a === 'answers') { SHOW_ANS = t.checked; sset('aidt:v1:showAns', SHOW_ANS); render(cur); }
     if (a === 'export') exportRecord();
     if (a === 'submit') submitRecord(t);
     if (a === 'print') window.print();
