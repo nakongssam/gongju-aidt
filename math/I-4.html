@@ -270,6 +270,11 @@ details.blk-card summary{cursor:pointer}
 @media(max-width:900px){.vid-grid{grid-template-columns:1fr}}
 .pf-grid select{width:100%;min-width:0;padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px;background:#fff}
 .pf-err{color:var(--red);font-size:12px;min-height:16px;margin:-6px 0 8px}
+/* 입력칸: 흰 배경 + 더 진한 테두리로 잘 보이게 */
+.input-group textarea,.input-group input[type=text],.pred-row input,.pf-grid input,.pf-grid select{background:#fff!important;border:1.5px solid #cfccc4!important}
+.input-group textarea:hover,.input-group input[type=text]:hover,.pred-row input:hover{border-color:#a8a49a!important}
+.input-group textarea:focus,.input-group input[type=text]:focus,.pred-row input:focus,.pf-grid input:focus,.pf-grid select:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px var(--accent-lt)}
+.input-group textarea::placeholder,.input-group input::placeholder,.pred-row input::placeholder{color:#b3afa6}
 </style>
 </head>
 <body>
