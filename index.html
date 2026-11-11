@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>공주시 AI·디지털 교육과정 AIDT</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap');
+:root{--bg:#F5F4F0;--surface:#fff;--border:#E5E3DD;--txt:#1A1A1A;--txt2:#555;--txt3:#999;--accent:#10b981;--accent-lt:#d1fae5;--accent-dk:#059669;--blue:#3b82f6;--blue-lt:#eff6ff;--amber:#f59e0b}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6}
+.wrap{max-width:1080px;margin:0 auto;padding:36px 20px 80px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:26px}
+.eyebrow{font-size:12px;font-weight:800;letter-spacing:2px;color:var(--accent)}
+h1{font-size:28px;font-weight:900;line-height:1.3}
+.sub{color:var(--txt2);font-size:14px;margin-top:4px}
+.who{font-size:13px;color:var(--txt2);text-align:right}
+.who a{color:var(--accent);cursor:pointer;text-decoration:underline}
+.tdash{display:inline-block;margin-top:6px;font-size:13px;color:var(--blue);text-decoration:none;font-weight:600}
+.tabs{display:flex;gap:6px;margin-bottom:18px}
+.tab{padding:9px 20px;border-radius:22px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-weight:700;font-family:inherit;font-size:14px}
+.tab.on{background:var(--txt);color:#fff;border-color:var(--txt)}
+.overall{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px 20px;margin-bottom:22px;display:flex;gap:28px;flex-wrap:wrap}
+.overall div b{display:block;font-size:22px;font-weight:800;color:var(--accent-dk)}
+.overall div span{font-size:12px;color:var(--txt3)}
+h2{font-size:15px;font-weight:800;margin:26px 0 10px;color:var(--txt2)}
+h2 small{font-weight:500;color:var(--txt3);margin-left:6px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:8px;transition:.2s}
+.card:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.06);border-color:var(--accent)}
+.code{font-size:12px;font-weight:800;color:var(--accent)}
+.ttl{font-size:15px;font-weight:700;line-height:1.45;flex:1}
+.bar{height:6px;background:#eeece6;border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.meta{display:flex;justify-content:space-between;font-size:12px;color:var(--txt3)}
+.lv{font-weight:800}.lv.상{color:var(--accent-dk)}.lv.중{color:var(--blue)}.lv.하{color:var(--amber)}
+.note{margin-top:34px;font-size:12px;color:var(--txt3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">2025 공주시 교육발전특구 · 일반고</div>
+      <h1>AI·디지털 교육과정 AIDT</h1>
+      <div class="sub">공통 모듈 4차시 + 교과 융합 모듈 12차시 · 과학/수학</div>
+    </div>
+    <div class="who"><div id="who"></div><a class="tdash" href="teacher.html">👩‍🏫 교사용 대시보드 →</a></div>
+  </header>
+  <div class="tabs"><button class="tab on" data-s="과학">🔬 과학</button><button class="tab" data-s="수학">📐 수학</button></div>
+  <div class="overall" id="overall"></div>
+  <div id="list"></div>
+  <p class="note">진행 현황은 이 기기의 브라우저에 저장된 학습 기록을 기준으로 표시됩니다.</p>
+</div>
+<script>
+const LESSONS = [{"id": "sci-I-1", "subject": "과학", "code": "Ⅰ-1", "module": "공통 모듈", "n": 1, "roman": "I", "videos": 3, "file": "science/I-1.html", "title": "스마트 팜의 과학", "quiz": 6, "pages": 14}, {"id": "sci-I-2", "subject": "과학", "code": "Ⅰ-2", "module": "공통 모듈", "n": 2, "roman": "I", "videos": 3, "file": "science/I-2.html", "title": "탄소 발자국 계산기", "quiz": 6, "pages": 12}, {"id": "sci-I-3", "subject": "과학", "code": "Ⅰ-3", "module": "공통 모듈", "n": 3, "roman": "I", "videos": 3, "file": "science/I-3.html", "title": "하천 쓰레기 분류 AI", "quiz": 6, "pages": 12}, {"id": "sci-I-4", "subject": "과학", "code": "Ⅰ-4", "module": "공통 모듈", "n": 4, "roman": "I", "videos": 3, "file": "science/I-4.html", "title": "2050년 공주시 인구 예측", "quiz": 6, "pages": 12}, {"id": "sci-II-1", "subject": "과학", "code": "Ⅱ-1", "module": "교과 융합 모듈", "n": 1, "roman": "II", "videos": 3, "file": "science/II-1.html", "title": "일출·일몰 경향성 탐구", "quiz": 6, "pages": 12}, {"id": "sci-II-2", "subject": "과학", "code": "Ⅱ-2", "module": "교과 융합 모듈", "n": 2, "roman": "II", "videos": 3, "file": "science/II-2.html", "title": "빅데이터 수집과 귀납적 탐구 방법의 유사점", "quiz": 6, "pages": 12}, {"id": "sci-II-3", "subject": "과학", "code": "Ⅱ-3", "module": "교과 융합 모듈", "n": 3, "roman": "II", "videos": 3, "file": "science/II-3.html", "title": "구석기의 과학, 디지털로 다시 태어나다", "quiz": 6, "pages": 13}, {"id": "sci-II-4", "subject": "과학", "code": "Ⅱ-4", "module": "교과 융합 모듈", "n": 4, "roman": "II", "videos": 3, "file": "science/II-4.html", "title": "안개가 자주 발생하는 원인은 무엇일까?", "quiz": 5, "pages": 13}, {"id": "sci-II-5", "subject": "과학", "code": "Ⅱ-5", "module": "교과 융합 모듈", "n": 5, "roman": "II", "videos": 3, "file": "science/II-5.html", "title": "외래종이 생태계 평형에 미치는 영향", "quiz": 9, "pages": 13}, {"id": "sci-II-6", "subject": "과학", "code": "Ⅱ-6", "module": "교과 융합 모듈", "n": 6, "roman": "II", "videos": 3, "file": "science/II-6.html", "title": "공주대교의 길이는 몇 m일까?", "quiz": 7, "pages": 13}, {"id": "sci-II-7", "subject": "과학", "code": "Ⅱ-7", "module": "교과 융합 모듈", "n": 7, "roman": "II", "videos": 3, "file": "science/II-7.html", "title": "공주시 강수 데이터 시각화하기", "quiz": 6, "pages": 14}, {"id": "sci-II-8", "subject": "과학", "code": "Ⅱ-8", "module": "교과 융합 모듈", "n": 8, "roman": "II", "videos": 3, "file": "science/II-8.html", "title": "태양의 스펙트럼 분석하기", "quiz": 6, "pages": 14}, {"id": "sci-II-9", "subject": "과학", "code": "Ⅱ-9", "module": "교과 융합 모듈", "n": 9, "roman": "II", "videos": 3, "file": "science/II-9.html", "title": "섬유를 이루는 분자 구조 탐구하기", "quiz": 6, "pages": 14}, {"id": "sci-II-10", "subject": "과학", "code": "Ⅱ-10", "module": "교과 융합 모듈", "n": 10, "roman": "II", "videos": 3, "file": "science/II-10.html", "title": "공산성, 과학으로 다시 보다", "quiz": 6, "pages": 13}, {"id": "sci-II-11", "subject": "과학", "code": "Ⅱ-11", "module": "교과 융합 모듈", "n": 11, "roman": "II", "videos": 3, "file": "science/II-11.html", "title": "낙하하는 알밤을 온전하게 받아내려면?", "quiz": 7, "pages": 14}, {"id": "sci-II-12", "subject": "과학", "code": "Ⅱ-12", "module": "교과 융합 모듈", "n": 12, "roman": "II", "videos": 3, "file": "science/II-12.html", "title": "공주 알밤이 만들어지기까지의 생태계 흐름", "quiz": 2, "pages": 13}, {"id": "math-I-1", "subject": "수학", "code": "Ⅰ-1", "module": "공통 모듈", "n": 1, "roman": "I", "videos": 3, "file": "math/I-1.html", "title": "월별 개최 축제 웹페이지 구현", "quiz": 4, "pages": 12}, {"id": "math-I-2", "subject": "수학", "code": "Ⅰ-2", "module": "공통 모듈", "n": 2, "roman": "I", "videos": 3, "file": "math/I-2.html", "title": "수질 오염 경고 시스템 기획", "quiz": 5, "pages": 13}, {"id": "math-I-3", "subject": "수학", "code": "Ⅰ-3", "module": "공통 모듈", "n": 3, "roman": "I", "videos": 3, "file": "math/I-3.html", "title": "생태 분류 집합 분류 모델 만들기", "quiz": 6, "pages": 12}, {"id": "math-I-4", "subject": "수학", "code": "Ⅰ-4", "module": "공통 모듈", "n": 4, "roman": "I", "videos": 3, "file": "math/I-4.html", "title": "생성형 AI로 만드는 문화·역사 홍보 포스터", "quiz": 7, "pages": 13}, {"id": "math-II-1", "subject": "수학", "code": "Ⅱ-1", "module": "교과 융합 모듈", "n": 1, "roman": "II", "videos": 3, "file": "math/II-1.html", "title": "정안면 밤 생산 농가 보조금 조건 정하기", "quiz": 7, "pages": 12}, {"id": "math-II-2", "subject": "수학", "code": "Ⅱ-2", "module": "교과 융합 모듈", "n": 2, "roman": "II", "videos": 3, "file": "math/II-2.html", "title": "정안면 밤 생산 데이터로 소득 예측하기", "quiz": 7, "pages": 12}, {"id": "math-II-3", "subject": "수학", "code": "Ⅱ-3", "module": "교과 융합 모듈", "n": 3, "roman": "II", "videos": 3, "file": "math/II-3.html", "title": "공주시 네비게이션", "quiz": 6, "pages": 11}, {"id": "math-II-4", "subject": "수학", "code": "Ⅱ-4", "module": "교과 융합 모듈", "n": 4, "roman": "II", "videos": 3, "file": "math/II-4.html", "title": "원의 방정식 모델링", "quiz": 7, "pages": 11}, {"id": "math-II-5", "subject": "수학", "code": "Ⅱ-5", "module": "교과 융합 모듈", "n": 5, "roman": "II", "videos": 3, "file": "math/II-5.html", "title": "백제 복식의 대칭 구조 분석", "quiz": 8, "pages": 14}, {"id": "math-II-6", "subject": "수학", "code": "Ⅱ-6", "module": "교과 융합 모듈", "n": 6, "roman": "II", "videos": 3, "file": "math/II-6.html", "title": "삼각함수로 기후 데이터 모델링하기", "quiz": 5, "pages": 13}, {"id": "math-II-7", "subject": "수학", "code": "Ⅱ-7", "module": "교과 융합 모듈", "n": 7, "roman": "II", "videos": 3, "file": "math/II-7.html", "title": "데이터로 기후의 미래를 읽다", "quiz": 4, "pages": 12}, {"id": "math-II-8", "subject": "수학", "code": "Ⅱ-8", "module": "교과 융합 모듈", "n": 8, "roman": "II", "videos": 3, "file": "math/II-8.html", "title": "자연사박물관 전시 증가 예측", "quiz": 6, "pages": 12}, {"id": "math-II-9", "subject": "수학", "code": "Ⅱ-9", "module": "교과 융합 모듈", "n": 9, "roman": "II", "videos": 3, "file": "math/II-9.html", "title": "정적분으로 공주시 하천 곡선 넓이 구하기", "quiz": 7, "pages": 13}, {"id": "math-II-10", "subject": "수학", "code": "Ⅱ-10", "module": "교과 융합 모듈", "n": 10, "roman": "II", "videos": 3, "file": "math/II-10.html", "title": "무령왕릉 구조를 통한 부피 계산", "quiz": 7, "pages": 13}, {"id": "math-II-11", "subject": "수학", "code": "Ⅱ-11", "module": "교과 융합 모듈", "n": 11, "roman": "II", "videos": 3, "file": "math/II-11.html", "title": "유구읍 실크의 물결", "quiz": 7, "pages": 14}, {"id": "math-II-12", "subject": "수학", "code": "Ⅱ-12", "module": "교과 융합 모듈", "n": 12, "roman": "II", "videos": 3, "file": "math/II-12.html", "title": "미세먼지 데이터 탐구", "quiz": 6, "pages": 14}];
+function get(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}}
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+let subj = (location.hash.slice(1) && decodeURIComponent(location.hash.slice(1))) || '과학';
+function draw(){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.s===subj));
+  const ls = LESSONS.filter(l=>l.subject===subj);
+  let started=0, done=0, scores=[];
+  const card = l => {
+    const s = (get('aidt:v1:'+l.id)||{}).summary;
+    if(s){ if(s.progress>0) started++; if(s.progress>=100) done++; if(s.answered) scores.push(s.score); }
+    const pr = s ? s.progress : 0;
+    return `<a class="card" href="${encodeURI(l.file)}"><div class="code">${l.subject} ${l.code}</div><div class="ttl">${esc(l.title)}</div>
+      <div class="bar"><i style="width:${pr}%"></i></div>
+      <div class="meta"><span>${s&&pr>0?`진행 ${pr}%`:`퀴즈 ${l.quiz}문항${l.videos?` · 영상 ${l.videos}편`:""}`}</span><span>${s&&s.answered?`퀴즈 ${s.score}점 <span class="lv ${s.level}">${s.level}</span>`:''}</span></div></a>`;
+  };
+  const g1 = ls.filter(l=>l.roman==='I'), g2 = ls.filter(l=>l.roman==='II');
+  document.getElementById('list').innerHTML =
+    `<h2>Ⅰ. 공통 모듈<small>AI·디지털 기초 4차시</small></h2><div class="grid">${g1.map(card).join('')}</div>`+
+    `<h2>Ⅱ. 교과 융합 모듈<small>${subj} × AI·디지털 12차시</small></h2><div class="grid">${g2.map(card).join('')}</div>`;
+  const avg = scores.length? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : '–';
+  document.getElementById('overall').innerHTML =
+    `<div><b>${started} / ${ls.length}</b><span>시작한 차시</span></div><div><b>${done}</b><span>모든 활동 완료</span></div><div><b>${avg}${scores.length?'점':''}</b><span>평균 퀴즈 성취도</span></div>`;
+  const P = get('aidt:v1:profile');
+  document.getElementById('who').innerHTML = P ? '👤 '+esc([P.school,P.grade&&P.grade+'학년',P.cls&&P.cls+'반',P.num&&P.num+'번',P.name].filter(Boolean).join(' ')) : '👤 학습자 정보는 차시를 열면 입력할 수 있어요';
+}
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{subj=t.dataset.s;history.replaceState(null,'','#'+subj);draw()});
+window.addEventListener('pageshow',draw);
+draw();
+</script>
+</body>
+</html>

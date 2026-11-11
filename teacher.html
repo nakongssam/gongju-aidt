@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIDT 교사용 대시보드</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap');
+:root{--bg:#F5F4F0;--surface:#fff;--border:#E5E3DD;--lt:#EEECE6;--txt:#1A1A1A;--txt2:#555;--txt3:#999;--accent:#10b981;--accent-lt:#d1fae5;--accent-dk:#059669;--blue:#3b82f6;--blue-lt:#eff6ff;--red:#ef4444;--red-lt:#fee2e2;--amber:#d97706;--amber-lt:#fef3c7}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--txt);line-height:1.6;font-size:14px}
+.wrap{max-width:1180px;margin:0 auto;padding:30px 20px 80px}
+a.back{font-size:12px;color:var(--txt3);text-decoration:none}
+h1{font-size:24px;font-weight:900;margin:4px 0 2px}
+.sub{color:var(--txt2);font-size:13px}
+.drop{display:block;margin:18px 0;border:2px dashed var(--border);border-radius:14px;background:var(--surface);padding:26px;text-align:center;color:var(--txt2);cursor:pointer;transition:.2s}
+.drop.hover{border-color:var(--accent);background:var(--accent-lt)}
+.drop b{color:var(--txt)}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+select,button{font-family:inherit;font-size:13px;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--surface);cursor:pointer}
+button.p{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px}
+.c{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px}
+.c .l{font-size:12px;color:var(--txt3)}.c .v{font-size:24px;font-weight:800;color:var(--accent-dk)}.c .s{font-size:11px;color:var(--txt2)}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:16px;overflow-x:auto}
+.panel h2{font-size:15px;font-weight:800;margin-bottom:10px}
+.panel h2 small{font-weight:500;color:var(--txt3);font-size:12px;margin-left:6px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{border-bottom:1px solid var(--lt);padding:7px 8px;text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--txt3);font-weight:600;white-space:nowrap;cursor:default}
+th.sort{cursor:pointer}th.sort:hover{color:var(--accent)}
+.rate{display:flex;align-items:center;gap:8px;min-width:140px}
+.rate .t{height:8px;flex:1;background:var(--lt);border-radius:4px;overflow:hidden}.rate .t i{display:block;height:100%}
+.flag{font-size:11px;font-weight:700;color:var(--red);background:var(--red-lt);padding:1px 7px;border-radius:8px;white-space:nowrap}
+.g{display:inline-block;width:22px;text-align:center;font-weight:800}
+.g.o{color:var(--accent-dk)}.g.m{color:var(--amber)}.g.x{color:var(--red)}.g.n{color:#ccc}
+.lv{font-weight:800}.lv.상{color:var(--accent-dk)}.lv.중{color:var(--blue)}.lv.하{color:var(--amber)}
+.empty{color:var(--txt3);padding:30px;text-align:center}
+.sheet-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin:-6px 0 18px}
+.sheet-row{display:flex;gap:8px;margin:8px 0 4px;flex-wrap:wrap}
+.sheet-row input{flex:1;min-width:220px;font-family:inherit;font-size:13px;padding:8px 12px;border-radius:8px;border:1px solid var(--border)}
+.ans td:first-child{white-space:nowrap;color:var(--txt2);width:150px}
+.tag{display:inline-block;background:var(--amber-lt);color:var(--amber);border-radius:10px;padding:2px 10px;margin:2px;font-size:12px;font-weight:600}
+.muted{color:var(--txt3)}
+.legend{font-size:12px;color:var(--txt3);margin-bottom:8px}
+@media(max-width:900px){.cards{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="index.html">← 전체 차시</a>
+  <h1>👩‍🏫 교사용 대시보드</h1>
+  <div class="sub">학생이 차시별 '나의 학습 리포트'에서 내려받아 제출한 학습 기록(.json)을 불러와 학급 결과를 분석합니다. 파일은 이 컴퓨터 안에서만 처리되며 외부로 전송되지 않습니다.</div>
+
+  <label class="drop" id="drop"><input type="file" id="file" accept=".json,application/json" multiple hidden>
+    <b>📂 학습 기록 파일을 여기에 끌어다 놓거나 클릭해서 선택하세요</b><br><span class="muted">여러 학생·여러 차시 파일을 한꺼번에 불러올 수 있어요</span></label>
+
+  <div class="sheet-box">
+    <b>🔗 구글 시트에서 불러오기</b> <span class="muted">학생이 '선생님께 제출하기'로 보낸 결과를 한 번에 가져옵니다</span>
+    <div class="sheet-row"><input id="sUrl" placeholder="웹 앱 주소 (https://script.google.com/macros/s/…/exec)"><input id="sKey" type="password" placeholder="교사용 비밀번호" style="max-width:180px"><button class="p" id="sLoad">불러오기</button></div>
+    <div id="sMsg" class="muted" style="font-size:12px"></div>
+  </div>
+
+  <div id="app"><div class="empty">아직 불러온 학습 기록이 없습니다.</div></div>
+</div>
+<script src="aidt-config.js"></script>
+<script>
+const LESSONS = [{"id": "sci-I-1", "subject": "과학", "code": "Ⅰ-1", "module": "공통 모듈", "n": 1, "roman": "I", "videos": 3, "file": "science/I-1.html", "title": "스마트 팜의 과학", "quiz": 6, "pages": 14}, {"id": "sci-I-2", "subject": "과학", "code": "Ⅰ-2", "module": "공통 모듈", "n": 2, "roman": "I", "videos": 3, "file": "science/I-2.html", "title": "탄소 발자국 계산기", "quiz": 6, "pages": 12}, {"id": "sci-I-3", "subject": "과학", "code": "Ⅰ-3", "module": "공통 모듈", "n": 3, "roman": "I", "videos": 3, "file": "science/I-3.html", "title": "하천 쓰레기 분류 AI", "quiz": 6, "pages": 12}, {"id": "sci-I-4", "subject": "과학", "code": "Ⅰ-4", "module": "공통 모듈", "n": 4, "roman": "I", "videos": 3, "file": "science/I-4.html", "title": "2050년 공주시 인구 예측", "quiz": 6, "pages": 12}, {"id": "sci-II-1", "subject": "과학", "code": "Ⅱ-1", "module": "교과 융합 모듈", "n": 1, "roman": "II", "videos": 3, "file": "science/II-1.html", "title": "일출·일몰 경향성 탐구", "quiz": 6, "pages": 12}, {"id": "sci-II-2", "subject": "과학", "code": "Ⅱ-2", "module": "교과 융합 모듈", "n": 2, "roman": "II", "videos": 3, "file": "science/II-2.html", "title": "빅데이터 수집과 귀납적 탐구 방법의 유사점", "quiz": 6, "pages": 12}, {"id": "sci-II-3", "subject": "과학", "code": "Ⅱ-3", "module": "교과 융합 모듈", "n": 3, "roman": "II", "videos": 3, "file": "science/II-3.html", "title": "구석기의 과학, 디지털로 다시 태어나다", "quiz": 6, "pages": 13}, {"id": "sci-II-4", "subject": "과학", "code": "Ⅱ-4", "module": "교과 융합 모듈", "n": 4, "roman": "II", "videos": 3, "file": "science/II-4.html", "title": "안개가 자주 발생하는 원인은 무엇일까?", "quiz": 5, "pages": 13}, {"id": "sci-II-5", "subject": "과학", "code": "Ⅱ-5", "module": "교과 융합 모듈", "n": 5, "roman": "II", "videos": 3, "file": "science/II-5.html", "title": "외래종이 생태계 평형에 미치는 영향", "quiz": 9, "pages": 13}, {"id": "sci-II-6", "subject": "과학", "code": "Ⅱ-6", "module": "교과 융합 모듈", "n": 6, "roman": "II", "videos": 3, "file": "science/II-6.html", "title": "공주대교의 길이는 몇 m일까?", "quiz": 7, "pages": 13}, {"id": "sci-II-7", "subject": "과학", "code": "Ⅱ-7", "module": "교과 융합 모듈", "n": 7, "roman": "II", "videos": 3, "file": "science/II-7.html", "title": "공주시 강수 데이터 시각화하기", "quiz": 6, "pages": 14}, {"id": "sci-II-8", "subject": "과학", "code": "Ⅱ-8", "module": "교과 융합 모듈", "n": 8, "roman": "II", "videos": 3, "file": "science/II-8.html", "title": "태양의 스펙트럼 분석하기", "quiz": 6, "pages": 14}, {"id": "sci-II-9", "subject": "과학", "code": "Ⅱ-9", "module": "교과 융합 모듈", "n": 9, "roman": "II", "videos": 3, "file": "science/II-9.html", "title": "섬유를 이루는 분자 구조 탐구하기", "quiz": 6, "pages": 14}, {"id": "sci-II-10", "subject": "과학", "code": "Ⅱ-10", "module": "교과 융합 모듈", "n": 10, "roman": "II", "videos": 3, "file": "science/II-10.html", "title": "공산성, 과학으로 다시 보다", "quiz": 6, "pages": 13}, {"id": "sci-II-11", "subject": "과학", "code": "Ⅱ-11", "module": "교과 융합 모듈", "n": 11, "roman": "II", "videos": 3, "file": "science/II-11.html", "title": "낙하하는 알밤을 온전하게 받아내려면?", "quiz": 7, "pages": 14}, {"id": "sci-II-12", "subject": "과학", "code": "Ⅱ-12", "module": "교과 융합 모듈", "n": 12, "roman": "II", "videos": 3, "file": "science/II-12.html", "title": "공주 알밤이 만들어지기까지의 생태계 흐름", "quiz": 2, "pages": 13}, {"id": "math-I-1", "subject": "수학", "code": "Ⅰ-1", "module": "공통 모듈", "n": 1, "roman": "I", "videos": 3, "file": "math/I-1.html", "title": "월별 개최 축제 웹페이지 구현", "quiz": 4, "pages": 12}, {"id": "math-I-2", "subject": "수학", "code": "Ⅰ-2", "module": "공통 모듈", "n": 2, "roman": "I", "videos": 3, "file": "math/I-2.html", "title": "수질 오염 경고 시스템 기획", "quiz": 5, "pages": 13}, {"id": "math-I-3", "subject": "수학", "code": "Ⅰ-3", "module": "공통 모듈", "n": 3, "roman": "I", "videos": 3, "file": "math/I-3.html", "title": "생태 분류 집합 분류 모델 만들기", "quiz": 6, "pages": 12}, {"id": "math-I-4", "subject": "수학", "code": "Ⅰ-4", "module": "공통 모듈", "n": 4, "roman": "I", "videos": 3, "file": "math/I-4.html", "title": "생성형 AI로 만드는 문화·역사 홍보 포스터", "quiz": 7, "pages": 13}, {"id": "math-II-1", "subject": "수학", "code": "Ⅱ-1", "module": "교과 융합 모듈", "n": 1, "roman": "II", "videos": 3, "file": "math/II-1.html", "title": "정안면 밤 생산 농가 보조금 조건 정하기", "quiz": 7, "pages": 12}, {"id": "math-II-2", "subject": "수학", "code": "Ⅱ-2", "module": "교과 융합 모듈", "n": 2, "roman": "II", "videos": 3, "file": "math/II-2.html", "title": "정안면 밤 생산 데이터로 소득 예측하기", "quiz": 7, "pages": 12}, {"id": "math-II-3", "subject": "수학", "code": "Ⅱ-3", "module": "교과 융합 모듈", "n": 3, "roman": "II", "videos": 3, "file": "math/II-3.html", "title": "공주시 네비게이션", "quiz": 6, "pages": 11}, {"id": "math-II-4", "subject": "수학", "code": "Ⅱ-4", "module": "교과 융합 모듈", "n": 4, "roman": "II", "videos": 3, "file": "math/II-4.html", "title": "원의 방정식 모델링", "quiz": 7, "pages": 11}, {"id": "math-II-5", "subject": "수학", "code": "Ⅱ-5", "module": "교과 융합 모듈", "n": 5, "roman": "II", "videos": 3, "file": "math/II-5.html", "title": "백제 복식의 대칭 구조 분석", "quiz": 8, "pages": 14}, {"id": "math-II-6", "subject": "수학", "code": "Ⅱ-6", "module": "교과 융합 모듈", "n": 6, "roman": "II", "videos": 3, "file": "math/II-6.html", "title": "삼각함수로 기후 데이터 모델링하기", "quiz": 5, "pages": 13}, {"id": "math-II-7", "subject": "수학", "code": "Ⅱ-7", "module": "교과 융합 모듈", "n": 7, "roman": "II", "videos": 3, "file": "math/II-7.html", "title": "데이터로 기후의 미래를 읽다", "quiz": 4, "pages": 12}, {"id": "math-II-8", "subject": "수학", "code": "Ⅱ-8", "module": "교과 융합 모듈", "n": 8, "roman": "II", "videos": 3, "file": "math/II-8.html", "title": "자연사박물관 전시 증가 예측", "quiz": 6, "pages": 12}, {"id": "math-II-9", "subject": "수학", "code": "Ⅱ-9", "module": "교과 융합 모듈", "n": 9, "roman": "II", "videos": 3, "file": "math/II-9.html", "title": "정적분으로 공주시 하천 곡선 넓이 구하기", "quiz": 7, "pages": 13}, {"id": "math-II-10", "subject": "수학", "code": "Ⅱ-10", "module": "교과 융합 모듈", "n": 10, "roman": "II", "videos": 3, "file": "math/II-10.html", "title": "무령왕릉 구조를 통한 부피 계산", "quiz": 7, "pages": 13}, {"id": "math-II-11", "subject": "수학", "code": "Ⅱ-11", "module": "교과 융합 모듈", "n": 11, "roman": "II", "videos": 3, "file": "math/II-11.html", "title": "유구읍 실크의 물결", "quiz": 7, "pages": 14}, {"id": "math-II-12", "subject": "수학", "code": "Ⅱ-12", "module": "교과 융합 모듈", "n": 12, "roman": "II", "videos": 3, "file": "math/II-12.html", "title": "미세먼지 데이터 탐구", "quiz": 6, "pages": 14}];
+const LMAP = Object.fromEntries(LESSONS.map(l=>[l.id,l]));
+const REC = {};   // lessonId -> studentKey -> record
+let curL = null, sortKey = 'id', sortDir = 1;
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const sid = st => [st.grade, String(st.cls||'').padStart(2,'0'), String(st.num||'').padStart(2,'0')].join('') ;
+const skey = st => [st.school,st.grade,st.cls,st.num,st.name].join('|');
+const fmt = s => { s=Math.round(s||0); const m=Math.floor(s/60); return m+'분'; };
+const pct = (a,b) => b ? Math.round(a/b*100) : 0;
+const color = p => p>=80?'var(--accent)':p>=60?'var(--blue)':p>=40?'var(--amber)':'var(--red)';
+const rateBar = p => `<div class="rate"><div class="t"><i style="width:${p}%;background:${color(p)}"></i></div><b>${p}%</b></div>`;
+
+function addRecord(r){
+  if (!r || r.format!=='gongju-aidt-v1' || !r.lesson || !r.student) return false;
+  const L = REC[r.lesson.id] = REC[r.lesson.id] || {};
+  const k = skey(r.student);
+  if (!L[k] || L[k].exportedAt < r.exportedAt) L[k] = r;
+  return true;
+}
+async function load(files){
+  let ok=0, bad=0;
+  for (const f of files){
+    try{
+      const r = JSON.parse(await f.text());
+      if (r.format!=='gongju-aidt-v1' || !r.lesson || !r.student) throw 0;
+      const L = REC[r.lesson.id] = REC[r.lesson.id] || {};
+      const k = skey(r.student);
+      if (!L[k] || L[k].exportedAt < r.exportedAt) L[k] = r;
+      ok++;
+    }catch(e){ bad++; }
+  }
+  const ids = Object.keys(REC);
+  if (!curL || !REC[curL]) curL = ids.sort()[0];
+  draw();
+  if (bad) alert(`${ok}개 불러옴, ${bad}개는 학습 기록 파일이 아니어서 건너뛰었습니다.`);
+}
+const drop = document.getElementById('drop');
+document.getElementById('file').onchange = e => load(e.target.files);
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('hover')}));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hover')}));
+drop.addEventListener('drop',e=>load(e.dataTransfer.files));
+const sUrl=document.getElementById('sUrl'), sKey=document.getElementById('sKey'), sMsg=document.getElementById('sMsg');
+try{ sUrl.value = localStorage.getItem('aidt:t:url') || ((window.AIDT_CONFIG||{}).submitUrl||''); sKey.value = localStorage.getItem('aidt:t:key')||''; }catch(e){}
+document.getElementById('sLoad').onclick = async () => {
+  const url=sUrl.value.trim(), key=sKey.value.trim();
+  if(!url||!key){ sMsg.textContent='웹 앱 주소와 비밀번호를 입력하세요.'; return; }
+  try{ localStorage.setItem('aidt:t:url',url); localStorage.setItem('aidt:t:key',key); }catch(e){}
+  sMsg.textContent='불러오는 중…';
+  try{
+    const j = await (await fetch(url+(url.includes('?')?'&':'?')+'key='+encodeURIComponent(key))).json();
+    if(!j.ok){ sMsg.textContent = j.error==='key' ? '비밀번호가 맞지 않습니다.' : '오류: '+j.error; return; }
+    let n=0; j.records.forEach(r=>{ if(addRecord(r)) n++; });
+    const ids=Object.keys(REC); if(!curL||!REC[curL]) curL=ids.sort()[0];
+    sMsg.textContent = `✅ ${n}건을 불러왔습니다 (${new Date().toLocaleTimeString('ko-KR')}).`; draw();
+  }catch(e){ sMsg.textContent='불러오지 못했습니다. 주소가 맞는지, 웹 앱 액세스 권한이 \'모든 사용자\'인지 확인하세요.'; }
+};
+
+function lname(id){ const l=LMAP[id]; return l? `${l.subject} ${l.code} · ${l.title}` : id; }
+
+function draw(){
+  const app = document.getElementById('app');
+  const ids = Object.keys(REC).sort((a,b)=>lname(a).localeCompare(lname(b),'ko'));
+  if (!ids.length){ app.innerHTML='<div class="empty">아직 불러온 학습 기록이 없습니다.</div>'; return; }
+  const rs = Object.values(REC[curL]).sort((a,b)=>{
+    const va = sortKey==='id'? sid(a.student) : sortKey==='name'? a.student.name : (a.summary[sortKey]??-1);
+    const vb = sortKey==='id'? sid(b.student) : sortKey==='name'? b.student.name : (b.summary[sortKey]??-1);
+    return (va>vb?1:va<vb?-1:0)*sortDir;
+  });
+  const n = rs.length, Q = rs[0].quiz;
+  const avg = k => { const v=rs.map(r=>r.summary[k]).filter(x=>x!=null); return v.length? Math.round(v.reduce((a,b)=>a+b,0)/v.length):null; };
+  const lv = {상:0,중:0,하:0,'-':0}; rs.forEach(r=>lv[r.summary.level]=(lv[r.summary.level]||0)+1);
+
+  // 문항 분석
+  const items = Q.map((q,i)=>{
+    const ans = rs.map(r=>r.quiz[i]).filter(x=>x && x.done);
+    const first = ans.filter(x=>x.firstCorrect).length, fin = ans.filter(x=>x.correct).length;
+    const wrongs = {}; rs.forEach(r=>{ const x=r.quiz[i]; if(x && x.tries.length && x.tries[0]!==x.answer) wrongs[x.tries[0]]=(wrongs[x.tries[0]]||0)+1; });
+    const top = Object.entries(wrongs).sort((a,b)=>b[1]-a[1])[0];
+    return {q, n:ans.length, first:pct(first,ans.length), fin:pct(fin,ans.length), top};
+  });
+  const weak = items.filter(it=>it.n && it.first<60);
+  const low = rs.filter(r=>r.summary.level==='하');
+
+  // 서술형 프롬프트
+  const prompts = rs[0].responses.map((x,i)=>({i, page:x.page, prompt:x.prompt}));
+  const selP = +(document.getElementById('pSel')?.value || 0);
+
+  app.innerHTML = `
+  <div class="bar">
+    <select id="lSel">${ids.map(id=>`<option value="${id}" ${id===curL?'selected':''}>${esc(lname(id))} (${Object.keys(REC[id]).length}명)</option>`).join('')}</select>
+    <button class="p" id="csv">⬇ 결과 CSV 내려받기</button>
+    <button id="clr">불러온 기록 비우기</button>
+  </div>
+  <div class="cards">
+    <div class="c"><div class="l">제출 학생</div><div class="v">${n}명</div><div class="s">${esc(lname(curL)).slice(0,30)}</div></div>
+    <div class="c"><div class="l">평균 진행률</div><div class="v">${avg('progress')??'–'}%</div><div class="s">활동 작성·퀴즈·진단 기준</div></div>
+    <div class="c"><div class="l">평균 퀴즈 성취도</div><div class="v">${avg('score')??'–'}점</div><div class="s">1차 정답 1점 · 2차 정답 0.5점</div></div>
+    <div class="c"><div class="l">성취 수준 분포</div><div class="v" style="font-size:17px"><span class="lv 상">상 ${lv.상}</span> · <span class="lv 중">중 ${lv.중}</span> · <span class="lv 하">하 ${lv.하}</span></div><div class="s">퀴즈 미완료 ${lv['미완료']||0}명 · 미응시 ${lv['-']||0}명</div></div>
+    <div class="c"><div class="l">평균 학습 시간</div><div class="v">${fmt(avg('timeSec'))}</div><div class="s">자기진단 평균 ${avg('self')??'–'}%</div></div>
+  </div>
+
+  <div class="panel"><h2>🎯 보충 지도 포인트<small>1차 정답률 60% 미만 문항 · 성취 수준 '하' 학생</small></h2>
+    ${weak.length? weak.map(it=>`<div style="margin:4px 0"><span class="flag">${it.first}%</span> <b>${esc(it.q.num)}번</b> ${esc(it.q.question.slice(0,70))} <span class="muted">→ 관련 개념: ${esc(it.q.concept||'')}</span></div>`).join('') : '<div class="muted">정답률이 낮은 문항이 없습니다.</div>'}
+    <div style="margin-top:10px">${low.length? '보충 대상: '+low.map(r=>`<span class="tag">${esc(r.student.name)} ${r.summary.score}점</span>`).join('') : '<span class="muted">성취 수준 \'하\' 학생이 없습니다.</span>'}</div>
+  </div>
+
+  <div class="panel"><h2>📊 문항 분석</h2>
+    <table><tr><th>번호</th><th>문항</th><th>1차 정답률</th><th>최종 정답률</th><th>가장 많이 고른 오답</th><th>관련 개념</th></tr>
+    ${items.map(it=>`<tr><td><b>${esc(it.q.num)}</b></td><td>${esc(it.q.question)}<div class="muted" style="font-size:12px">정답: ${esc(it.q.answer)}</div></td><td>${it.n?rateBar(it.first):'–'}</td><td>${it.n?rateBar(it.fin):'–'}</td><td>${it.top?esc(it.top[0])+` <span class="muted">(${it.top[1]}명)</span>`:'<span class="muted">없음</span>'}</td><td class="muted">${esc(it.q.concept||'')}</td></tr>`).join('')}
+    </table></div>
+
+  <div class="panel"><h2>👥 학생별 결과<small>헤더를 누르면 정렬</small></h2>
+    <div class="legend"><span class="g o">✓</span>1차 정답 <span class="g m">△</span>2차 정답 <span class="g x">✗</span>오답 <span class="g n">·</span>미응시</div>
+    <table><tr><th class="sort" data-k="id">학번</th><th class="sort" data-k="name">이름</th><th class="sort" data-k="progress">진행률</th><th class="sort" data-k="score">성취도</th><th>수준</th><th class="sort" data-k="self">자기진단</th><th class="sort" data-k="timeSec">학습시간</th><th class="sort" data-k="videosWatched">영상</th><th>문항별 (${Q.map(q=>q.num).join(' ')})</th></tr>
+    ${rs.map(r=>{ const s=r.summary; return `<tr><td>${esc(sid(r.student))}</td><td><b>${esc(r.student.name)}</b></td><td>${s.progress}%</td><td>${s.answered?s.score+'점':'–'}</td><td><span class="lv ${s.level}">${s.level}</span></td><td>${s.self??'–'}${s.self!=null?'%':''}</td><td>${fmt(s.timeSec)}</td><td>${s.videosTotal?s.videosWatched+'/'+s.videosTotal:'–'}</td><td style="white-space:nowrap">${r.quiz.map(x=>!x.done?'<span class="g n">·</span>':x.firstCorrect?'<span class="g o">✓</span>':x.correct?'<span class="g m">△</span>':'<span class="g x">✗</span>').join('')}</td></tr>`}).join('')}
+    </table></div>
+
+  <div class="panel"><h2>✍️ 서술형 응답 모아보기</h2>
+    ${prompts.length? `<select id="pSel" style="max-width:100%">${prompts.map(p=>`<option value="${p.i}" ${p.i===selP?'selected':''}>[${esc(p.page)}] ${esc(p.prompt.slice(0,70))}</option>`).join('')}</select>
+    <table class="ans" style="margin-top:10px">${rs.map(r=>{const a=(r.responses[selP]||{}).answer||''; return `<tr><td>${esc(sid(r.student))} ${esc(r.student.name)}</td><td>${a?esc(a).replace(/\n/g,'<br>'):'<span class="muted">미작성</span>'}</td></tr>`}).join('')}</table>` : '<div class="muted">서술형 문항이 없습니다.</div>'}
+  </div>`;
+
+  document.getElementById('lSel').onchange = e => { curL = e.target.value; draw(); };
+  document.getElementById('pSel') && (document.getElementById('pSel').onchange = () => draw());
+  document.querySelectorAll('th.sort').forEach(th=>th.onclick=()=>{ const k=th.dataset.k; sortDir = sortKey===k? -sortDir : (k==='id'||k==='name'?1:-1); sortKey=k; draw(); });
+  document.getElementById('clr').onclick = () => { if(confirm('불러온 기록을 모두 비울까요? (학생 파일은 지워지지 않습니다)')){ for(const k in REC) delete REC[k]; curL=null; draw(); } };
+  document.getElementById('csv').onclick = () => {
+    const head = ['학교','학년','반','번호','이름','진행률(%)','성취도(점)','수준','자기진단(%)','학습시간(분)','영상시청', ...Q.map(q=>q.num+'번'), ...prompts.map(p=>'[서술] '+p.prompt.slice(0,40))];
+    const rows = rs.map(r=>{ const st=r.student,s=r.summary; return [st.school,st.grade,st.cls,st.num,st.name,s.progress,s.answered?s.score:'',s.level,s.self??'',Math.round((s.timeSec||0)/60),s.videosTotal?s.videosWatched+'/'+s.videosTotal:'', ...r.quiz.map(x=>!x.done?'':x.firstCorrect?'O':x.correct?'△':'X'), ...r.responses.map(x=>x.answer||'')]; });
+    const csv = '﻿'+[head,...rows].map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=`AIDT_${(LMAP[curL]||{}).subject||''}${(LMAP[curL]||{}).code||curL}_결과.csv`; a.click();
+  };
+}
+</script>
+</body>
+</html>

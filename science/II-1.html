@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIDT — 일출·일몰 경향성 탐구</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
+:root {
+  --bg:#F5F4F0;--surface:#fff;--surface-alt:#FAFAF7;--border:#E5E3DD;--border-lt:#EEECE6;
+  --txt:#1A1A1A;--txt2:#555;--txt3:#999;
+  --accent:#10b981;--accent-lt:#d1fae5;--accent-dk:#059669;
+  --blue:#3b82f6;--blue-lt:#eff6ff;--green:#10b981;--green-lt:#d1fae5;
+  --purple:#8b5cf6;--purple-lt:#ede9fe;--red:#ef4444;--red-lt:#fee2e2;
+  --radius:12px;--radius-sm:8px;--transition:.25s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--txt);line-height:1.75;font-size:15px;-webkit-font-smoothing:antialiased}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:290px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+.sidebar-hd{padding:20px 16px 14px;border-bottom:1px solid var(--border-lt)}
+.sidebar-hd h1{font-size:11px;font-weight:800;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+.sidebar-hd .topic{font-size:16px;font-weight:700;line-height:1.4}
+.sidebar-nav{flex:1;padding:8px 6px;overflow-y:auto}
+
+/* Navigation Categories & Items */
+.nav-cat{font-size:11px;font-weight:800;color:var(--txt3);margin:20px 12px 6px;padding-bottom:4px;border-bottom:1px solid var(--border-lt);letter-spacing:1px;}
+.nav-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;font-size:13px;color:var(--txt2);cursor:pointer;border-radius:var(--radius-sm);transition:var(--transition);line-height:1.4;word-break:keep-all;}
+.nav-item:hover{background:var(--surface-alt);color:var(--txt)}
+.nav-item.active{background:var(--accent-lt);color:var(--accent-dk);font-weight:700}
+.nav-item .icon{font-size:15px;flex-shrink:0;width:20px;text-align:center;margin-top:1px;}
+
+.sidebar-ft{padding:10px 16px;border-top:1px solid var(--border-lt)}
+.prog-label{font-size:11px;font-weight:600;color:var(--txt3);margin-bottom:4px}
+.prog-bg{height:4px;background:var(--border-lt);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+.content{flex:1;margin-left:290px;padding:28px 44px 80px;max-width:860px}
+.mobile-tog{display:none;position:fixed;top:10px;left:10px;z-index:200;width:38px;height:38px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);transition:transform .3s}
+  .sidebar.open{transform:translateX(0)}
+  .content{margin-left:0;padding:18px 14px 60px}
+  .mobile-tog{display:flex!important}
+}
+
+/* Page header */
+.pg-hd{margin-bottom:28px}
+.pg-crumb{font-size:12px;color:var(--txt3);margin-bottom:6px}
+.pg-title{font-size:26px;font-weight:800;line-height:1.3}
+
+/* Blocks */
+.blk{margin-bottom:22px}
+.blk-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px}
+.blk h3{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.blk h4{font-size:14px;font-weight:700;margin:16px 0 8px}
+.blk p,.blk li{font-size:14px;line-height:1.8;color:var(--txt)}
+.blk p+p{margin-top:10px}
+.blk ul{padding-left:20px;margin:8px 0}
+.blk ul li{margin-bottom:4px}
+
+/* Callout */
+.callout{border-left:4px solid var(--accent);background:var(--accent-lt);padding:14px 18px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:18px}
+.callout.blue{background:var(--blue-lt);border-color:var(--blue)}
+.callout.green{background:var(--green-lt);border-color:var(--green)}
+.callout.purple{background:var(--purple-lt);border-color:var(--purple)}
+.callout .c-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.callout .c-body{font-size:14px;line-height:1.7;color:var(--txt2)}
+
+/* Objectives */
+.obj-list{list-style:none;padding:0}
+.obj-list li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;font-size:14px}
+.obj-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+
+/* Input */
+.input-group{margin-bottom:14px}
+.input-group label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+.input-group textarea,.input-group input[type=text]{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;font-family:inherit;line-height:1.6;resize:vertical;background:var(--bg);transition:var(--transition)}
+.input-group textarea:focus,.input-group input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Steps */
+.steps{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
+.steps .s-hd{padding:14px 18px;border-bottom:1px solid var(--border-lt);font-size:14px;font-weight:700}
+.step{padding:14px 18px;border-bottom:1px solid var(--border-lt);display:flex;gap:12px;cursor:pointer;transition:var(--transition)}
+.step:last-child{border-bottom:none}
+.step:hover{background:var(--surface-alt)}
+.step .s-n{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--txt3);flex-shrink:0;transition:var(--transition)}
+.step.done .s-n{background:var(--green);border-color:var(--green);color:#fff}
+.step .s-c h4{font-size:14px;font-weight:600;margin:0 0 3px}
+.step .s-c p{font-size:13px;color:var(--txt2);margin:0}
+
+/* Tabs */
+.tabs-nav{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:0}
+.tab-btn{padding:9px 18px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt3);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:var(--transition)}
+.tab-btn:hover{color:var(--txt)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-panel{display:none;padding:16px 0;font-size:14px;line-height:1.8}
+.tab-panel.active{display:block}
+
+/* Flip Cards */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:18px}
+.flip-card{height:130px;perspective:1000px;cursor:pointer}
+.flip-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.flip-card.flipped .flip-inner{transform:rotateY(180deg)}
+.flip-front,.flip-back{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;text-align:center;padding:14px;font-size:14px}
+.flip-front{background:var(--accent-lt);border:1px solid var(--accent);font-weight:700;color:var(--accent-dk)}
+.flip-back{background:var(--surface);border:1px solid var(--border);transform:rotateY(180deg);color:var(--txt2);font-size:13px;line-height:1.5}
+
+/* Quiz */
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;gap:8px}
+.quiz-q .qn{color:var(--accent);font-weight:800}
+.quiz-opt{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px;cursor:pointer;transition:var(--transition);font-size:14px}
+.quiz-opt:hover{border-color:var(--accent);background:var(--accent-lt)}
+.quiz-opt.correct{border-color:var(--green);background:var(--green-lt)}
+.quiz-opt.wrong{border-color:var(--red);background:var(--red-lt)}
+.quiz-opt .oc{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:var(--transition)}
+.quiz-opt.correct .oc{border-color:var(--green);background:var(--green);color:#fff}
+.quiz-opt.wrong .oc{border-color:var(--red);background:var(--red);color:#fff}
+.quiz-fb{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-top:10px;display:none}
+.quiz-fb.show{display:block}
+.quiz-fb.ok{background:var(--green-lt);color:var(--green)}
+.quiz-fb.no{background:var(--red-lt);color:var(--red)}
+
+/* Prediction */
+.pred-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pred-row label{font-size:13px;font-weight:600;min-width:100px}
+.pred-row input{width:130px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;text-align:center}
+.pred-row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Assessment - Segmented Control */
+.assess-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--border-lt);flex-wrap:wrap}
+.assess-item:last-child{border-bottom:none}
+.assess-item>span{flex:1;min-width:200px;font-size:14px;line-height:1.6;color:var(--txt)}
+.rating-g{display:inline-flex;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;flex-shrink:0}
+.r-btn{padding:6px 16px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt2);background:transparent;border:none;border-radius:6px;cursor:pointer;transition:var(--transition);min-width:54px}
+.r-btn:hover{color:var(--txt)}
+.r-btn.sel{background:var(--surface);color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.r-btn:nth-child(1).sel{color:var(--green);background:var(--green-lt)}
+.r-btn:nth-child(2).sel{color:#d97706;background:#fef3c7}
+.r-btn:nth-child(3).sel{color:var(--red);background:var(--red-lt)}
+
+/* Link Card */
+.link-card{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--txt);transition:var(--transition);margin-bottom:12px}
+.link-card:hover{border-color:var(--accent);background:var(--surface-alt);transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,0.04)}
+.link-card .l-icon{font-size:24px;flex-shrink:0;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--accent-lt);border-radius:var(--radius-sm)}
+.link-card .l-info{flex:1;min-width:0}
+.link-card .l-info h4{font-size:14px;font-weight:700;margin:0 0 2px;color:var(--txt)}
+.link-card .l-info p{font-size:13px;line-height:1.5;color:var(--txt2);margin:0}
+.link-card::after{content:"↗";font-size:14px;color:var(--txt3);flex-shrink:0;margin-left:4px}
+
+/* Btn */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:var(--transition)}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:var(--accent-dk);transform:translateY(-1px)}
+.btn-o{background:transparent;border:1px solid var(--border);color:var(--txt2)}
+.btn-o:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Page nav */
+.pg-nav{display:flex;justify-content:space-between;margin-top:44px;padding-top:20px;border-top:1px solid var(--border-lt)}
+.pg-nav .btn{min-width:130px;justify-content:center}
+
+/* Animation */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.content>*{animation:fadeIn .35s ease both}
+
+
+/* ===== AIDT 추가 스타일 ===== */
+.home-link{display:inline-block;font-size:12px;color:var(--txt3);text-decoration:none;margin-bottom:8px}
+.home-link:hover{color:var(--accent)}
+.nav-item{display:flex;align-items:center}
+.nst{width:18px;text-align:center;font-size:12px;font-weight:800;color:var(--txt3)}
+.nst.done{color:var(--accent)}
+.nst.part{color:#f59e0b;font-size:16px}
+.nav-report{margin-top:2px}
+.prog-sub{font-size:11px;color:var(--txt3);margin-top:6px}
+.who{font-size:12px;color:var(--txt2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border-lt)}
+.who a{color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:4px}
+.pg-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.save-pill{font-size:11px;color:var(--accent-dk);background:var(--accent-lt);padding:3px 10px;border-radius:12px;white-space:nowrap;transition:transform .2s}
+.save-pill.flash{transform:scale(1.06)}
+.input-group.filled label::after{content:" ✓";color:var(--accent);font-weight:800}
+.auto-note{font-size:12px;color:var(--txt3);margin-top:8px}
+/* 퀴즈 */
+.quiz-q{align-items:flex-start}
+.q-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;height:fit-content}
+.q-badge.ok{background:var(--green-lt);color:var(--accent-dk)}
+.q-badge.no{background:var(--red-lt);color:var(--red)}
+.q-badge.try{background:#fef3c7;color:#b45309}
+.quiz-opt .oc{font-size:11px;font-weight:700;color:var(--txt3)}
+.quiz-opt:not(.disabled):hover{border-color:var(--accent);background:var(--surface-alt)}
+.quiz-opt.disabled{cursor:default}
+.quiz-opt.wrong .oc,.quiz-opt.correct .oc{color:#fff}
+.concept-link{display:inline-block;color:var(--blue);cursor:pointer;font-size:13px;font-weight:600;text-decoration:none;margin-top:8px}
+.concept-link:hover{text-decoration:underline}
+/* 코드 */
+.code-blk{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:18px}
+.code-hd{background:#2d2d2d;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;color:#e0e0e0;font-size:13px;font-weight:600;font-family:monospace}
+.code-copy{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#e0e0e0;border-radius:4px;padding:5px 10px;font-size:12px;cursor:pointer}
+.code-bd{background:#1e1e1e;padding:16px;overflow-x:auto}
+.code-bd pre{margin:0;color:#d4d4d4;font-family:Consolas,Monaco,monospace;font-size:14px;line-height:1.6}
+.link-card.wokwi{background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-color:#ffb74d}
+/* 리포트 */
+.rep-who{font-size:16px;font-weight:700}
+.rep-meta{font-size:13px;color:var(--txt3);margin-bottom:14px}
+.rep-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.rep-stat{background:var(--surface-alt);border:1px solid var(--border-lt);border-radius:var(--radius-sm);padding:12px}
+.rep-stat .l{font-size:12px;color:var(--txt3)}
+.rep-stat .v{font-size:24px;font-weight:800;color:var(--accent-dk);line-height:1.3}
+.rep-stat .s{font-size:11px;color:var(--txt2)}
+.rep-msg{font-weight:600;padding:10px 14px;border-radius:var(--radius-sm);background:var(--blue-lt)}
+.rep-msg.lv-상{background:var(--green-lt)}
+.rep-msg.lv-하{background:#fef3c7}
+.rec-list{margin:10px 0 12px 20px}
+.rec-list li{margin:4px 0}
+.rec-list .concept-link{margin-top:0}
+.rep-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.rep-tbl th,.rep-tbl td{border-bottom:1px solid var(--border-lt);padding:7px 6px;text-align:left;vertical-align:top}
+.rep-tbl th{color:var(--txt3);font-weight:600;font-size:12px}
+.rep-tbl .concept-link{margin:0;font-weight:500}
+.r-ok{color:var(--accent-dk);font-weight:700}.r-mid{color:#d97706;font-weight:700}.r-no{color:var(--red);font-weight:700}
+.muted{color:var(--txt3)}.small{font-size:12px}
+details.blk-card summary{cursor:pointer}
+.ans-item{padding:10px 0;border-bottom:1px solid var(--border-lt)}
+.ans-q{font-size:12px;color:var(--txt3);margin-bottom:3px}
+.ans-a{font-size:14px}
+.rep-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* 모달·토스트 */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:var(--radius);padding:22px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:4px}
+.pf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}
+.pf-grid label{font-size:12px;color:var(--txt2);display:flex;flex-direction:column;gap:4px}
+.pf-grid label:first-child,.pf-grid label.full{grid-column:1/-1}
+.pf-grid input{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px}
+.modal-btns{display:flex;justify-content:flex-end;gap:8px}
+.modal-btns .btn{min-width:0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:#1f2937;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.3s;z-index:600}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:900px){
+  .content{padding-top:62px!important}
+  .rep-stats{grid-template-columns:1fr 1fr}
+}
+@media print{
+  .sidebar,.mobile-tog,.pg-nav,.rep-actions,.save-pill{display:none!important}
+  .content{margin-left:0!important;max-width:none!important;padding:0!important}
+  body{background:#fff}
+  details{display:block}details>*{display:block}
+}
+.rep-stat .v small{font-size:12px;font-weight:600;color:var(--txt3);margin-left:3px}
+/* 영상 */
+.vid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.vid-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.vid-card.seen{border-color:var(--accent)}
+.vid-thumb{position:relative;aspect-ratio:16/9;background:#111 center/cover no-repeat;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.vid-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid-play{width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;padding-left:4px;transition:.2s}
+.vid-thumb:hover .vid-play{background:#e11d48;transform:scale(1.08)}
+.vid-cap{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px}
+.vid-cap a{margin-left:auto;font-size:12px;color:var(--txt3);text-decoration:none}
+.vid-cap a:hover{color:var(--accent)}
+.vid-seen{display:none;font-size:11px;font-weight:700;color:var(--accent-dk);background:var(--accent-lt);padding:1px 8px;border-radius:10px}
+.vid-card.seen .vid-seen{display:inline}
+.submit-box{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border:2px solid var(--accent)!important;background:var(--accent-lt)!important}
+.submit-box.done{border-color:var(--border)!important;background:var(--surface)!important}
+.submit-box .btn:disabled{opacity:.6;cursor:wait}
+@media(max-width:900px){.vid-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="mobile-tog" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</div>
+<div class="app">
+<aside class="sidebar">
+  <div class="sidebar-hd">
+    <h1>AIDT 일반고 과학 · Ⅱ-1</h1>
+    <div class="topic">공주시 6월·12월 일출·일몰로<br>살펴보는 경향성 탐구</div>
+  </div>
+  <nav class="sidebar-nav" id="nav"></nav>
+  <div class="sidebar-ft">
+    <div class="prog-label">진행률 <span id="pTxt">0%</span></div>
+    <div class="prog-bg"><div class="prog-fill" id="pBar" style="width:0%"></div></div>
+  </div>
+</aside>
+<main class="content" id="main"></main>
+</div>
+<script src="../aidt-config.js"></script>
+<script>
+const META = {"id": "sci-II-1", "subject": "과학", "code": "Ⅱ-1", "module": "교과 융합 모듈", "n": 1, "roman": "II", "videos": ["JR8RNzR58i8", "Mll-hJHgLFw", "WR4eexhexR4"]};
+const D = {"title": "일출·일몰 경향성 탐구", "pages": [{"id": "p1", "cat": "도입", "icon": "🎯", "title": "학습목표", "blocks": [{"t": "html", "v": "\n          <div class=\"blk\" style=\"text-align:center;padding:20px 0\">\n            <div style=\"font-size:12px;color:var(--accent);font-weight:700;letter-spacing:2px;margin-bottom:6px\">과학 × 정보 융합<\/div>\n            <h2 style=\"font-size:28px;font-weight:900;margin-bottom:8px\">공주시 6월·12월 일출·일몰로<br>살펴보는 경향성 탐구<\/h2>\n            <div style=\"display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px\">\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--accent-lt);color:var(--accent-dk)\">귀납적 탐구<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--blue-lt);color:var(--blue)\">관측 빅데이터<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--purple-lt);color:var(--purple)\">기후변화<\/span>\n            <\/div>\n          <\/div>\n        "}, {"t": "objectives", "items": ["직접적인 관찰을 통한 탐구를 수행하고, 귀납적 탐구 방법을 설명할 수 있다.", "관측 자료(빅데이터)를 활용하여 한반도의 기후 변화 경향성을 파악할 수 있다.", "탐구 수행에서 얻은 정량적 데이터를 분석하여 그 결과를 다양하게 표상하고 소통할 수 있다."]}]}, {"id": "p2", "cat": "도입", "icon": "💭", "title": "생각해요", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 해는 매일 같은 시각에 뜰까?<\/h3>\n          <p>아침에 학교 가는 길, 어떤 날은 이미 환하고, 어떤 날은 아직도 깜깜합니다. 우리는 막연히 \"여름에는 일찍 밝아지고, 겨울에는 늦게 밝아진다\"는 사실을 경험으로 알고 있습니다. 하지만 정확히 얼마나 차이가 날까요? 공주시의 6월 하지 무렵과 12월 동지 무렵, 해는 몇 시에 뜨고 몇 시에 질까요?<\/p>\n          <p>이렇게 매일·매년 쌓이는 일출·일몰 자료는 사실 거대한 <strong>관측 빅데이터<\/strong>입니다. 한국천문연구원은 한반도 곳곳의 일출·일몰 시각과 낮의 길이를 수십 년치 기록하고 공개하고 있습니다. 우리는 이 자료를 직접 관찰·수집하고, 분석해서 어떤 <strong>경향성<\/strong>을 발견할 수 있을까요?<\/p>\n          <p style=\"margin-top:12px;font-weight:600;color:var(--accent)\">관찰 → 자료 → 패턴 → 일반화. 이것이 과학적 탐구의 시작입니다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ 우리의 하루를 데이터로 본다면?<\/h4><p>나의 한 주 동안 해 뜨는 시각과 해 지는 시각을 떠올려 보고, 친구들과 의견을 나누어 봅시다.<\/p><\/div>"}, {"t": "input", "label": "▶ 나의 생각", "ph": "예: 12월에는 7시가 다 되어야 해가 떴는데, 6월에는 5시쯤이면 이미 밝다.", "rows": 2}, {"t": "input", "label": "▶ 우리 모둠의 생각", "ph": "모둠원들과 나눈 의견을 정리해 보세요.", "rows": 3}]}, {"id": "p3", "cat": "알아봐요", "icon": "📖", "title": "1. 귀납적 탐구 방법", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 귀납적 탐구란?<\/h3>\n          <p><strong>귀납적 탐구<\/strong>는 여러 개별 사례를 관찰하여 그 속에 숨은 공통된 규칙이나 법칙을 찾아내는 탐구 방법입니다. \"이번에도 그랬고, 저번에도 그랬으니, 다음에도 그럴 것이다\"라는 식의 추론입니다. 가설을 먼저 세우고 검증하는 연역적 탐구와는 출발점이 다릅니다.<\/p>\n        <\/div>"}, {"t": "steps", "title": "귀납적 탐구의 4단계", "items": [{"title": "1. 관찰", "desc": "여러 개별 사실·현상을 자세히 살펴보고 자료를 수집한다. (예: 공주시 6월·12월 일출·일몰 시각을 매일 측정)"}, {"title": "2. 분류 및 해석", "desc": "수집한 자료를 종류·기간별로 정리하고, 그 의미를 분석한다. (예: 6월에는 일출이 빠르고 12월에는 늦다는 점을 표·그래프로 정리)"}, {"title": "3. 일반화", "desc": "여러 사례에서 공통되는 패턴을 찾아 일반적인 규칙으로 표현한다. (예: 여름에는 낮이 길고, 겨울에는 낮이 짧다)"}, {"title": "4. 법칙 또는 원리 도출", "desc": "발견된 규칙을 더 큰 과학적 원리와 연결한다. (예: 지구 자전축이 23.5° 기울어진 채 공전하기 때문)"}]}, {"t": "callout", "variant": "green", "title": "💡 성취기준 [10과탐1-02-01], [10과탐1-02-03]", "body": "직접 관찰과 측정을 통해 자료를 수집하고, 정량적 데이터를 다양한 방식으로 표상·해석하는 활동을 통해 귀납적 탐구의 의미를 체험할 수 있도록 하는 단원입니다. 이번 활동은 한 번의 관측보다 <strong>여러 차례·여러 해의 자료<\/strong>를 비교하는 것이 핵심입니다."}]}, {"id": "p4", "cat": "알아봐요", "icon": "📖", "title": "2. 일출·일몰의 정의", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 일출과 일몰, 정확히 언제?<\/h3>\n          <p>우리가 흔히 말하는 일출과 일몰은 다음과 같이 천문학적으로 정의됩니다.<\/p>\n          <ul>\n            <li><strong>일출(日出)<\/strong>: 태양의 윗부분이 지평선(또는 수평선) 위로 처음 나타나는 순간<\/li>\n            <li><strong>일몰(日沒)<\/strong>: 태양의 윗부분이 지평선 아래로 완전히 사라지는 순간<\/li>\n            <li><strong>낮의 길이<\/strong>: 일몰 시각 − 일출 시각<\/li>\n          <\/ul>\n          <p>실제로 태양은 지평선 아래에 있을 때에도 빛이 보입니다. <strong>대기의 굴절<\/strong> 때문에 빛이 휘어져 들어오기 때문입니다. 그 결과 우리가 보는 일출은 진짜 일출보다 약간 빠르고, 일몰은 약간 늦습니다.<\/p>\n        <\/div>"}, {"t": "cards", "items": [{"front": "하지(夏至)", "back": "6월 21일경. 북반구에서 낮이 가장 길고 밤이 가장 짧은 날. 태양의 남중고도가 가장 높음"}, {"front": "동지(冬至)", "back": "12월 22일경. 북반구에서 낮이 가장 짧고 밤이 가장 긴 날. 태양의 남중고도가 가장 낮음"}, {"front": "춘분·추분", "back": "3월 21일·9월 23일경. 낮과 밤의 길이가 거의 같은 날. 태양이 적도를 지남"}, {"front": "공주시 위도", "back": "북위 약 36°27′. 한반도 중부에 위치. 위도가 다른 도시와 일출·일몰 시각에 차이가 있음"}]}, {"t": "callout", "variant": "blue", "title": "💡 한국천문연구원 생활천문관", "body": "전국 모든 지역의 과거·현재·미래 일출·일몰·월출·월몰 시각, 낮의 길이, 박명 시간 등을 무료로 제공합니다. 우리가 살펴볼 공주시의 데이터도 이곳에서 직접 조회할 수 있습니다."}]}, {"id": "p5", "cat": "활동해요", "icon": "✏️", "title": "1. 2025년 6월·12월 비교", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 한국천문연구원 자료로 공주시 살펴보기<\/h3>\n          <p>한국천문연구원 생활천문관에서 '공주' 지역, 2025년 6월과 12월의 일출·일몰 시각을 조회하여 표로 정리해 봅시다.<\/p>\n        <\/div>"}, {"t": "link", "url": "https://astro.kasi.re.kr/life/", "icon": "🌅", "title": "한국천문연구원 생활천문관", "desc": "지역·날짜를 선택해 일출·일몰 시각과 낮의 길이를 조회할 수 있는 공식 사이트"}, {"t": "steps", "title": "자료 수집 절차", "items": [{"title": "1. 사이트 접속", "desc": "한국천문연구원 생활천문관에서 '해와 달의 출몰' 메뉴 선택"}, {"title": "2. 지역 선택", "desc": "'공주' 또는 '충청남도 공주시'를 선택"}, {"title": "3. 기간 설정", "desc": "2025년 6월 1일~30일, 2025년 12월 1일~31일을 각각 조회"}, {"title": "4. 데이터 저장", "desc": "날짜·일출·일몰·낮의 길이를 Excel 또는 Padlet에 정리"}]}, {"t": "input", "label": "1. 우리 모둠이 정리한 2025년 6월 21일경(하지) 공주시 일출·일몰 시각은?", "ph": "예: 일출 05:14 / 일몰 19:46 / 낮의 길이 14시간 32분", "rows": 2}, {"t": "input", "label": "2. 우리 모둠이 정리한 2025년 12월 22일경(동지) 공주시 일출·일몰 시각은?", "ph": "예: 일출 07:36 / 일몰 17:23 / 낮의 길이 9시간 47분", "rows": 2}, {"t": "input", "label": "3. 6월과 12월의 낮의 길이는 약 얼마나 차이가 나는가? 이 차이는 우리 생활에 어떤 영향을 줄까?", "ph": "예: 약 4시간 45분 차이. 등교 시간, 야외 활동 시간, 에너지 사용량 등이 달라진다.", "rows": 3}]}, {"id": "p6", "cat": "활동해요", "icon": "📊", "title": "2. 3개년 데이터로 경향성 보기", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 2023년·2024년·2025년 6월·12월 비교<\/h3>\n          <p>한 해 자료만으로는 진짜 경향성을 알기 어렵습니다. 같은 6월·12월에 대해 <strong>3개년치 자료<\/strong>를 모아 비교하면, 단순한 우연인지 의미 있는 변화인지를 판단할 수 있습니다.<\/p>\n        <\/div>"}, {"t": "steps", "title": "3개년 비교 활동 순서", "items": [{"title": "1. 같은 기준일 정하기", "desc": "각 연도의 6월 21일(하지)과 12월 22일(동지)을 기준일로 정한다"}, {"title": "2. 데이터 수집", "desc": "2023·2024·2025년 6월 21일과 12월 22일의 일출·일몰·낮의 길이를 모두 조사"}, {"title": "3. 표로 정리", "desc": "Excel을 활용해 연도별·기준일별 값을 표로 정리한다"}, {"title": "4. 그래프 그리기", "desc": "꺾은선그래프 또는 막대그래프로 시각화. 연도별 차이를 한눈에 비교"}, {"title": "5. 해석·일반화", "desc": "공통된 패턴(예: 매년 거의 같은 시각)과 작은 차이의 의미를 해석"}]}, {"t": "callout", "variant": "purple", "title": "💡 Excel 활용 팁", "body": "• 표는 '연도-일출-일몰-낮의 길이' 형태로 정리<br>• '시간(hh:mm)' 형식 셀로 입력하면 자동 계산 가능<br>• '삽입 → 차트 → 꺾은선그래프'로 시각화<br>• X축은 연도, Y축은 시각(또는 시간)으로 설정"}, {"t": "input", "label": "1. 우리 모둠의 3개년 하지(6/21) 일출·일몰 자료 요약", "ph": "예: 일출은 매년 거의 5:13~5:15 사이로 일정, 일몰은 19:46 안팎. 거의 변화 없음.", "rows": 3}, {"t": "input", "label": "2. 우리 모둠의 3개년 동지(12/22) 일출·일몰 자료 요약", "ph": "예: 일출 7:35~7:37, 일몰 17:22~17:24. 매년 거의 같은 시각.", "rows": 3}, {"t": "html", "v": "<div class=\"blk\" style=\"margin-top:18px\">\n          <h3>▶ 발견한 경향성 — 일반화<\/h3>\n          <p>관찰한 자료에서 어떤 공통된 규칙을 찾을 수 있었나요? 귀납적 탐구의 핵심인 '<strong>일반화<\/strong>' 단계를 직접 수행해 봅시다.<\/p>\n        <\/div>"}, {"t": "prediction", "items": [{"label": "발견한 규칙 1", "ph": "예: 같은 날짜의 일출·일몰 시각은 해마다 거의 일정하다"}, {"label": "발견한 규칙 2", "ph": "예: 6월(하지)에는 낮이 약 14시간 30분, 12월(동지)에는 약 9시간 45분으로 큰 차이가 난다"}, {"label": "발견한 규칙 3", "ph": "예: 낮의 길이 차이는 약 4시간 45분으로 매년 비슷한 폭을 보인다"}, {"label": "이 규칙의 과학적 이유", "ph": "예: 지구 자전축이 23.5° 기울어진 채 공전하기 때문"}]}]}, {"id": "p7", "cat": "활동해요", "icon": "💡", "title": "3. 발표와 기후변화 연결", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 데이터로 이야기하기 — Miricanvas·Padlet 활용<\/h3>\n          <p>우리 모둠이 발견한 경향성을 다른 친구들에게 효과적으로 전달해 봅시다. <strong>Miricanvas<\/strong>로 카드뉴스나 인포그래픽을 만들고, <strong>Padlet<\/strong>에 게시해 친구들과 공유합니다.<\/p>\n        <\/div>"}, {"t": "link", "url": "https://www.miricanvas.com/", "icon": "🎨", "title": "Miricanvas — 카드뉴스·인포그래픽 디자인", "desc": "코딩 없이 발표 자료·포스터·SNS 게시물을 만들 수 있는 한국형 디자인 도구"}, {"t": "link", "url": "https://padlet.com/", "icon": "📌", "title": "Padlet — 공유 보드", "desc": "모둠별 결과물을 게시하고 친구들의 의견을 댓글로 받을 수 있는 협업 공간"}, {"t": "html", "v": "<div class=\"blk\" style=\"margin-top:18px\">\n          <h3>▶ ChatGPT로 결과 다듬기<\/h3>\n          <p>모둠 발표 자료의 문구를 더 다듬고 싶다면 <strong>ChatGPT<\/strong>의 도움을 받을 수 있습니다. 단, AI가 만든 결과를 그대로 쓰지 말고 반드시 사실 확인을 거쳐야 합니다.<\/p>\n        <\/div>"}, {"t": "input", "label": "1. ChatGPT에 던진 질문(프롬프트) 예시", "ph": "예: \"6월과 12월의 낮의 길이가 다른 이유를 중학생도 이해할 수 있게 3줄로 요약해 줘.\"", "rows": 2}, {"t": "input", "label": "2. AI 답변에서 우리 모둠이 '검증'한 사실은?", "ph": "예: 지구 자전축의 기울기 23.5° → 학교 지구과학 교과서로 확인함", "rows": 2}, {"t": "html", "v": "<div class=\"blk\" style=\"margin-top:18px\">\n          <h3>▶ 일출·일몰 데이터와 기후 변화<\/h3>\n          <p>일출·일몰 시각 자체는 큰 변화가 없지만, 같은 시간 동안 지구가 흡수하는 <strong>태양에너지의 양<\/strong>은 지구 온난화의 영향을 받아 변화하고 있습니다. 우리는 어떻게 이 둘을 연결할 수 있을까요?<\/p>\n        <\/div>"}, {"t": "input", "label": "3. 일출·일몰 자료에서 기후변화로 확장할 수 있는 후속 탐구 주제는?", "ph": "예: 같은 6월·12월의 평균 기온 변화 추세 비교 / 평균 일조 시간 변화 비교", "rows": 3}]}, {"id": "p8", "cat": "정리", "icon": "✅", "title": "스스로 진단하기", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 이번 수업에서 무엇을 배웠는지 점검해 봅시다<\/h3>\n          <p>아래 항목을 읽고, 자신의 이해 정도를 솔직하게 평가해 봅시다. 부족한 부분은 모둠 친구나 선생님께 도움을 요청하면 좋습니다.<\/p>\n        <\/div>"}, {"t": "assessment", "title": "학습 점검표", "ratings": ["잘함", "보통", "미흡"], "items": ["귀납적 탐구의 4단계(관찰·분류 및 해석·일반화·법칙 도출)를 설명할 수 있다.", "한국천문연구원 등 공식 데이터를 활용해 일출·일몰 자료를 수집하고 표로 정리할 수 있다.", "여러 해의 자료를 비교해 공통된 경향성을 찾아 일반화할 수 있다.", "발견한 경향성을 다양한 시각화·발표 도구로 표현하고, 기후변화 등 후속 주제와 연결할 수 있다."]}]}, {"id": "p9", "cat": "정리", "icon": "❓", "title": "활동퀴즈 1. 개념 이해", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 귀납적 탐구와 일출·일몰<\/h3><\/div>"}, {"t": "quiz", "num": "01", "q": "여러 개별 사례를 관찰하여 그 속에 숨은 공통된 규칙을 찾아내는 탐구 방법을 무엇이라 합니까?", "opts": ["연역적 탐구", "귀납적 탐구", "실험적 탐구", "이론적 탐구"], "ans": 1, "ok": "정답입니다! 귀납적 탐구는 '관찰 → 일반화'의 순서로 진행됩니다.", "no": "힌트: 여러 사례에서 규칙을 '끌어내는' 방법입니다."}, {"t": "quiz", "num": "02", "q": "귀납적 탐구 4단계 중, 여러 사례에서 공통된 패턴을 찾아 일반적 규칙으로 표현하는 단계는?", "opts": ["관찰", "분류 및 해석", "일반화", "검증"], "ans": 2, "ok": "정답입니다! 일반화는 \"여러 사례에 공통된 규칙은 ~이다\"라고 표현하는 단계입니다.", "no": "힌트: '일반적인 규칙'이라는 단어를 떠올려 보세요."}, {"t": "quiz", "num": "03", "q": "다음 중 일출·일몰 시각에 영향을 주는 가장 근본적인 요인은?<br>(1) 지구의 자전 (2) 지구의 공전 (3) 자전축의 기울기 (4) 위 보기 모두", "opts": ["(1) 지구의 자전만", "(2) 지구의 공전만", "(3) 자전축의 기울기만", "(4) (1)~(3) 모두 영향을 준다"], "ans": 3, "ok": "정답입니다! 자전은 일·야 주기를, 공전과 자전축 기울기는 계절에 따른 일출·일몰 시각의 변화를 만듭니다.", "no": "힌트: 일출·일몰의 변화에는 자전·공전·자전축 기울기가 함께 작용합니다."}]}, {"id": "p10", "cat": "정리", "icon": "❓", "title": "활동퀴즈 2. 적용·분석", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 데이터 해석과 시각화<\/h3><\/div>"}, {"t": "quiz", "num": "04", "q": "한국천문연구원 자료에서 공주시의 같은 날짜 일출·일몰 시각이 2023·2024·2025년에 거의 동일하다는 관찰로부터 끌어낼 수 있는 가장 적절한 결론은?", "opts": ["지구의 운동은 매년 거의 일정한 주기로 반복된다.", "지구 자전이 매년 점점 빨라지고 있다.", "공주시의 위도가 매년 변하고 있다.", "관측 장비가 매년 다른 값을 보여준다."], "ans": 0, "ok": "정답입니다! 같은 날짜의 일출·일몰 시각이 매년 거의 같다는 것은 지구의 운동이 일정한 주기로 반복됨을 시사합니다.", "no": "힌트: '매년 거의 같다'는 관찰이 의미하는 가장 자연스러운 결론을 찾아봅시다."}, {"t": "quiz", "num": "05", "q": "3개년치 6월·12월 일출·일몰 데이터를 비교할 때 가장 적합한 시각화 방법은?", "opts": ["원그래프", "꺾은선그래프 또는 막대그래프", "스캐터플롯(산점도)만", "픽토그램만"], "ans": 1, "ok": "정답입니다! 시간 변화·항목 비교에는 꺾은선·막대그래프가 가장 적합합니다.", "no": "힌트: 연도 간 비교·시간의 변화를 보여주기 좋은 그래프 형태입니다."}, {"t": "quiz", "num": "06", "q": "같은 날짜의 일출·일몰 시각은 거의 일정한데, 같은 6월의 평균 기온이 해마다 조금씩 높아지고 있다면 이는 어떤 해석으로 이어질 수 있습니까?", "opts": ["지구의 공전 속도가 빨라지고 있다.", "공주시의 위도가 변하고 있다.", "기후 변화(지구 온난화) 신호일 수 있다.", "일출 자료가 잘못된 것이다."], "ans": 2, "ok": "정답입니다! 일조 시간이 거의 같은데도 기온이 상승한다는 것은 지구 시스템 안에서 에너지 균형이 변했음을 시사합니다.", "no": "힌트: '같은 햇빛인데 더 더워졌다'면 어떤 의미일지 생각해 봅시다."}]}, {"id": "p11", "cat": "정리", "icon": "📚", "title": "읽기 자료", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>★ 지구의 운동과 태양에너지 — 낮의 길이가 만드는 계절<\/h3>\n          <p>지구는 태양을 중심으로 1년에 한 번 공전합니다. 그런데 지구의 자전축은 공전 궤도면에 대해 <strong>약 23.5° 기울어져 있습니다<\/strong>. 이 작은 기울기가 우리에게 사계절을 선물합니다.<\/p>\n        <\/div>"}, {"t": "tabs", "tabs": [{"label": "❶ 낮의 길이와 에너지", "content": "<p><strong>낮이 길수록 더 많은 태양에너지<\/strong><\/p><p>북반구에 있는 우리나라는 6월경 하지 무렵에 태양빛을 가장 오래, 가장 가파른 각도로 받습니다. 그 결과 단위 면적당 받는 태양에너지가 가장 많아 여름이 됩니다. 반대로 12월 동지 무렵에는 낮이 가장 짧고 태양빛도 비스듬히 들어와 에너지가 분산되므로 겨울이 됩니다.<\/p>"}, {"label": "❷ 계절은 거리가 아니다", "content": "<p><strong>여름이 가까워서가 아니다<\/strong><\/p><p>의외로 지구는 1월(근일점)에 태양에 가장 가깝고, 7월(원일점)에 가장 멉니다. 즉 계절은 태양과의 거리가 아니라 <strong>자전축의 기울기<\/strong>가 만드는 것입니다. 자전축이 어느 쪽으로 기울어졌느냐에 따라 빛이 비스듬히 들어오느냐, 수직에 가깝게 들어오느냐가 결정됩니다.<\/p>"}, {"label": "❸ 기후변화와 지구 온난화", "content": "<p><strong>같은 햇빛, 다른 결과<\/strong><\/p><p>지구가 받는 태양에너지의 양은 큰 변화가 없지만, 이산화탄소·메탄 같은 온실가스가 늘면서 지구 밖으로 빠져나가야 할 적외선이 갇히고 있습니다. 그 결과 같은 6월·12월이라도 평균 기온은 매년 조금씩 상승하고 있으며, 폭염·홍수·가뭄 같은 극한 기후가 빈번해집니다. 일출·일몰 시각은 거의 일정한데도 우리가 체감하는 '여름과 겨울'이 점점 변하는 이유입니다.<\/p>"}]}, {"t": "html", "v": "<div class=\"blk\"><h4>✓ 읽고 생각해 보기<\/h4><\/div>"}, {"t": "input", "label": "❶ 우리가 측정한 일출·일몰 자료에는 변화가 없지만, 평균 기온은 변하고 있는 이유는?", "ph": "태양에너지 양과 온실가스의 역할을 연결지어 설명해 봅시다.", "rows": 2}, {"t": "input", "label": "❷ 일출·일몰 외에 한반도의 기후 변화 경향성을 확인할 수 있는 다른 자료는?", "ph": "예: 평균 기온, 강수량, 첫눈·첫얼음 일자, 단풍·개화 시기 등", "rows": 3}, {"t": "link", "url": "https://www.kma.go.kr/", "icon": "🌡️", "title": "기상청 — 기후 통계 자료", "desc": "한반도의 기온·강수량·일조시간 등 장기 기후 통계를 제공. 일출·일몰 자료와 함께 분석에 활용할 수 있어요"}]}, {"id": "p12", "cat": "정리", "icon": "🧭", "title": "진로 연계", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 하늘과 데이터를 다루는 직업<\/h3>\n          <p>일출·일몰 자료를 모으고 분석하는 과정은 다양한 직업과 연결됩니다. 천문·기상·해양·데이터 분야의 대표 직업을 살펴봅시다.<\/p>\n        <\/div>"}, {"t": "cards", "items": [{"front": "기상학자", "back": "대기 현상과 기후 변화를 연구·예측. 기상청·기상연구소 등에서 일하며 일기예보·기후정책에 기여"}, {"front": "기후과학자", "back": "장기간의 관측 자료를 분석해 지구 시스템의 변화를 연구. IPCC 보고서 같은 국제 협력에도 참여"}, {"front": "데이터분석가", "back": "센서·관측·통계 자료를 분석해 의사결정을 지원. 천문·기상 분야의 빅데이터 분석에 점점 더 많은 수요"}, {"front": "항해사", "back": "바다에서 별·태양·시간 데이터를 활용해 위치와 방향을 판단. 천문 항법은 GPS 시대에도 여전히 유효"}]}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 관련 학과·기관<\/h3>\n          <ul>\n            <li><strong>학과<\/strong>: 천문우주학과, 대기과학과, 지구환경과학과, 통계학과, 데이터사이언스학과, 해양학과<\/li>\n            <li><strong>기관<\/strong>: 한국천문연구원(KASI), 기상청, 국립기상과학원, 극지연구소, 해양수산부 국립해양조사원<\/li>\n            <li><strong>자격<\/strong>: 기상기사, 기상예보기술사, 데이터분석준전문가(ADsP)<\/li>\n          <\/ul>\n        <\/div>"}, {"t": "link", "url": "https://www.kasi.re.kr/", "icon": "🔭", "title": "한국천문연구원(KASI) — 공식 홈페이지", "desc": "천문·우주 연구의 국가 대표 기관. 학생 대상 프로그램과 진로 정보가 풍부해요"}, {"t": "link", "url": "https://www.career.go.kr/", "icon": "🧭", "title": "커리어넷 — 직업·전공 탐색", "desc": "기상·천문·데이터 관련 직업과 학과 정보를 더 자세히 살펴볼 수 있습니다"}]}]};
+</script>
+<script>
+/* =====================================================================
+   공주시 AIDT 공통 엔진 v1
+   - 학습 기록 자동 저장(브라우저 localStorage)
+   - 학습자 정보, 활동 기반 진행률, 학습 시간
+   - 2회 도전형 퀴즈 + 오답 시 관련 개념 페이지 안내
+   - 나의 학습 리포트(성취 수준·맞춤 학습 경로·메타인지 비교)
+   - 학습 기록 내려받기(JSON) → 교사용 대시보드에서 분석
+   ===================================================================== */
+(function () {
+  'use strict';
+  var LID = META.id, KEY = 'aidt:v1:' + LID, PKEY = 'aidt:v1:profile';
+  var CFG = window.AIDT_CONFIG || {}, SUBMIT_URL = String(CFG.submitUrl || '').trim();
+  var VIDS = META.videos || [];
+
+  /* ---------- 저장소 ---------- */
+  var mem = {};
+  function sget(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return mem[k] || d; } }
+  function sset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } }
+  function fresh() { return { v: 1, inputs: {}, quiz: {}, assess: {}, steps: {}, videos: {}, visited: [], time: {}, last: 'p1', started: Date.now(), updated: Date.now() }; }
+  var S = sget(KEY, null) || fresh();
+  var P = sget(PKEY, null);
+  S.videos = S.videos || {};
+  var saveTimer = null;
+  function save(immediate) {
+    S.updated = Date.now();
+    S.summary = summary();
+    if (immediate) { sset(KEY, S); pill(); return; }
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () { sset(KEY, S); pill(); }, 300);
+  }
+
+  /* ---------- 유틸 ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function txt(h) { return String(h || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function $(s) { return document.querySelector(s); }
+  function fmtTime(sec) { sec = Math.round(sec || 0); var m = Math.floor(sec / 60); return m >= 60 ? Math.floor(m / 60) + '시간 ' + (m % 60) + '분' : m + '분 ' + (sec % 60) + '초'; }
+  var CIRC = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
+
+  /* ---------- 리포트 페이지 추가 ---------- */
+  if (VIDS.length) D.pages.splice(1, 0, { id: 'video', cat: '도입', icon: '🎬', title: '영상으로 미리 보기', blocks: [{ t: 'videos' }] });
+  D.pages.push({ id: 'report', cat: '마무리', icon: '📊', title: '나의 학습 리포트', blocks: [{ t: 'report' }] });
+  var PAGES = D.pages;
+  function pageById(id) { for (var i = 0; i < PAGES.length; i++) if (PAGES[i].id === id) return PAGES[i]; return null; }
+
+  /* ---------- 추적 항목(진행률 산정 대상) ---------- */
+  var ITEMS = [];          // {key,type,pid,label,...}
+  var QUIZ = [];           // 퀴즈 메타
+  PAGES.forEach(function (p) {
+    p.blocks.forEach(function (b, bi) {
+      var k = p.id + '.' + bi;
+      if (b.t === 'videos') VIDS.forEach(function (v, i) { ITEMS.push({ key: 'vid.' + v, type: 'video', pid: p.id, label: '영상 ' + (i + 1), vid: v }); });
+      if (b.t === 'input') ITEMS.push({ key: k, type: 'input', pid: p.id, label: txt(b.label) });
+      if (b.t === 'prediction') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'input', pid: p.id, label: txt(x.label) }); });
+      if (b.t === 'assessment') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'assess', pid: p.id, label: txt(x), ratings: b.ratings }); });
+      if (b.t === 'quiz') { var q = { key: k, type: 'quiz', pid: p.id, b: b, num: b.num, q: txt(b.q) }; ITEMS.push(q); QUIZ.push(q); }
+    });
+  });
+  function itemDone(it) {
+    if (it.type === 'input') return !!(S.inputs[it.key] && S.inputs[it.key].trim());
+    if (it.type === 'assess') return S.assess[it.key] != null;
+    if (it.type === 'quiz') return !!(S.quiz[it.key] && S.quiz[it.key].done);
+    if (it.type === 'video') return !!S.videos[it.vid];
+    return false;
+  }
+  function pageState(pid) {
+    var its = ITEMS.filter(function (x) { return x.pid === pid; });
+    if (pid === 'report') return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    if (!its.length) return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    var d = its.filter(itemDone).length;
+    return d === its.length ? 'done' : (d > 0 || S.visited.indexOf(pid) >= 0 ? 'part' : '');
+  }
+
+  /* ---------- 퀴즈 → 관련 개념 페이지 연결(어휘 중첩 기반) ---------- */
+  function words(s) { return (s.match(/[가-힣A-Za-z0-9]{2,}/g) || []); }
+  var conceptPages = PAGES.filter(function (p) { return p.cat === '알아봐요'; });
+  if (!conceptPages.length) conceptPages = PAGES.filter(function (p) { return p.cat === '활동해요'; });
+  var pageWords = {};
+  conceptPages.forEach(function (p) {
+    var t = p.title + ' ' + p.blocks.map(function (b) { return txt(b.v || b.body || b.title || '') + ' ' + (b.items ? txt(JSON.stringify(b.items)) : '') + ' ' + (b.tabs ? txt(JSON.stringify(b.tabs)) : ''); }).join(' ');
+    var set = {}; words(t).forEach(function (w) { set[w] = 1; set[w.slice(0, 2)] = 1; });
+    pageWords[p.id] = set;
+  });
+  var DF = {}, NP = conceptPages.length;
+  conceptPages.forEach(function (p) { for (var w in pageWords[p.id]) DF[w] = (DF[w] || 0) + 1; });
+  function idf(w) { return Math.log(1 + NP / (DF[w] || NP)); }
+  QUIZ.forEach(function (q) {
+    var b = q.b, src = b.q + ' ' + b.opts[b.ans] + ' ' + txt(b.ok), best = null, bs = -1;
+    var ws = {}; words(src).forEach(function (w) { ws[w] = 1; });
+    conceptPages.forEach(function (p) {
+      var s = 0, n = 0; for (var w in ws) { if (pageWords[p.id][w]) s += idf(w); else if (pageWords[p.id][w.slice(0, 2)]) s += idf(w.slice(0, 2)) * 0.3; }
+      for (var k in pageWords[p.id]) n++;
+      s = s / Math.pow(n + 20, 0.25);
+      if (s > bs) { bs = s; best = p; }
+    });
+    q.concept = best ? best.id : null;
+  });
+
+  /* ---------- 오답 힌트: 정답을 그대로 노출하면 일반 힌트로 대체 ---------- */
+  function safeHint(b) {
+    var h = txt(b.no), a = String(b.opts[b.ans]).trim();
+    var leak = a && h.indexOf(a) >= 0 && (a.length >= 3 || new RegExp('(=|은|는|이|가)\\s*' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(입니다|이다|이에요|$|\\.)').test(h));
+    if (!h || leak) return '풀이 과정을 다시 확인해 보세요. 관련 개념을 복습한 뒤 한 번 더 도전해 보세요.';
+    return h.replace(/^(힌트\s*[:：]\s*)/, '').replace(/^다시\s*(생각|계산)해\s*봅시다[.!]?\s*/, '');
+  }
+  function stripOk(s) { return txt(s).replace(/^(정답입니다[.!]?|정답[!.]|맞아요[.!]?|맞습니다[.!]?)\s*/, ''); }
+
+  /* ---------- 블록 렌더러 ---------- */
+  function rBlock(b, pid, bi) {
+    var k = pid + '.' + bi;
+    switch (b.t) {
+      case 'html': return b.v;
+      case 'objectives': return '<div class="blk blk-card"><h3>🎯 학습목표</h3><ul class="obj-list">' + b.items.map(function (x, i) { return '<li><span class="obj-num">' + (i + 1) + '</span><span>' + x + '</span></li>'; }).join('') + '</ul></div>';
+      case 'callout': return '<div class="callout ' + (b.variant || '') + '"><div class="c-title">' + b.title + '</div><div class="c-body">' + b.body + '</div></div>';
+      case 'input': {
+        var v = esc(S.inputs[k] || ''), lab = b.label;
+        return '<div class="blk input-group' + (v ? ' filled' : '') + '"><label for="i_' + k + '">' + lab + '</label>' +
+          (b.rows > 1 ? '<textarea id="i_' + k + '" data-k="' + k + '" rows="' + b.rows + '" placeholder="' + esc(b.ph || '') + '">' + v + '</textarea>'
+            : '<input type="text" id="i_' + k + '" data-k="' + k + '" placeholder="' + esc(b.ph || '') + '" value="' + v + '">') + '</div>';
+      }
+      case 'steps': return '<div class="steps"><div class="s-hd">📋 ' + b.title + '</div>' + b.items.map(function (s, i) {
+        var sk = k + '.' + i; return '<div class="step' + (S.steps[sk] ? ' done' : '') + '" data-sk="' + sk + '"><div class="s-n">' + (i + 1) + '</div><div class="s-c"><h4>' + s.title + '</h4><p>' + s.desc + '</p></div></div>';
+      }).join('') + '</div>';
+      case 'link': return '<a class="link-card" href="' + b.url + '" target="_blank" rel="noopener"><div class="l-icon">' + (b.icon || '🔗') + '</div><div class="l-info"><h4>' + b.title + '</h4><p>' + b.desc + '</p></div></a>';
+      case 'tabs': {
+        var tid = 't_' + k.replace('.', '_');
+        return '<div class="blk"><div class="tabs-nav">' + b.tabs.map(function (t, i) { return '<button class="tab-btn ' + (i === 0 ? 'active' : '') + '" data-tid="' + tid + '" data-ti="' + i + '">' + t.label + '</button>'; }).join('') + '</div>' +
+          b.tabs.map(function (t, i) { return '<div class="tab-panel ' + (i === 0 ? 'active' : '') + '" id="' + tid + '-' + i + '">' + t.content + '</div>'; }).join('') + '</div>';
+      }
+      case 'cards': return '<div class="cards-grid">' + b.items.map(function (c) { return '<div class="flip-card"><div class="flip-inner"><div class="flip-front">' + c.front.replace(/\n/g, '<br>') + '</div><div class="flip-back">' + c.back + '</div></div></div>'; }).join('') + '</div>';
+      case 'prediction': return '<div class="blk blk-card"><h4>🔮 예측 조건/행동 입력</h4>' + b.items.map(function (x, i) {
+        var pk = k + '.' + i; return '<div class="pred-row"><label for="i_' + pk + '">' + x.label + '</label><input type="text" id="i_' + pk + '" data-k="' + pk + '" placeholder="' + esc(x.ph || '') + '" value="' + esc(S.inputs[pk] || '') + '" style="width:100%"></div>';
+      }).join('') + '<div class="auto-note">✔ 입력하면 자동으로 저장됩니다.</div></div>';
+      case 'quiz': return quizHTML(k);
+      case 'assessment': return '<div class="blk blk-card"><h3>✅ ' + b.title + '</h3>' + b.items.map(function (x, i) {
+        var ak = k + '.' + i; return '<div class="assess-item"><span>' + x + '</span><div class="rating-g">' + b.ratings.map(function (r, ri) { return '<button class="r-btn' + (S.assess[ak] === ri ? ' sel' : '') + '" data-ak="' + ak + '" data-ri="' + ri + '">' + r + '</button>'; }).join('') + '</div></div>';
+      }).join('') + '</div>';
+      case 'code': {
+        var cid = 'c_' + k.replace('.', '_');
+        return '<div class="blk code-blk"><div class="code-hd"><span>' + esc(b.lang) + '</span><button class="code-copy" data-cid="' + cid + '">코드 복사</button></div><div class="code-bd"><pre id="' + cid + '">' + esc(b.code) + '</pre></div></div>';
+      }
+      case 'wokwi': return '<div class="blk"><a class="link-card wokwi" href="https://wokwi.com/projects/new/arduino-uno" target="_blank" rel="noopener"><div class="l-icon">🔧</div><div class="l-info"><h4>Wokwi 시뮬레이터로 직접 실습해 보기 ↗</h4><p>새 탭으로 시뮬레이터를 열어두고, 아래 코드를 하나씩 복사해 붙여넣은 뒤 ▶ 버튼으로 실행해 보세요.</p></div></a></div>';
+      case 'videos': return '<div class="blk"><p>이번 차시의 핵심 내용을 짧은 영상 ' + VIDS.length + '편으로 먼저 만나 봅시다. 영상을 보고 다음 쪽 <b>생각해요</b>로 넘어가세요.</p></div><div class="vid-grid">' +
+        VIDS.map(function (v, i) { return '<div class="vid-card' + (S.videos[v] ? ' seen' : '') + '"><div class="vid-thumb" data-vid="' + v + '" style="background-image:url(https://i.ytimg.com/vi/' + v + '/hqdefault.jpg)"><span class="vid-play">▶</span></div><div class="vid-cap"><b>🎬 영상 ' + (i + 1) + '</b><span class="vid-seen">✓ 시청함</span><a href="https://youtu.be/' + v + '" target="_blank" rel="noopener" data-vlink="' + v + '">유튜브에서 보기 ↗</a></div></div>'; }).join('') +
+        '</div>' + (location.protocol === 'file:' ? '<p class="muted small">※ 파일로 열면 유튜브 새 탭에서 재생됩니다.</p>' : '');
+      case 'report': return reportHTML();
+      default: return '';
+    }
+  }
+
+  /* ---------- 퀴즈 ---------- */
+  function qmeta(key) { for (var i = 0; i < QUIZ.length; i++) if (QUIZ[i].key === key) return QUIZ[i]; }
+  function quizHTML(key) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] }, tries = st.tries || [];
+    var done = !!st.done, correct = done && tries[tries.length - 1] === b.ans;
+    var badge = '';
+    if (done && correct) badge = '<span class="q-badge ok">' + (tries.length === 1 ? '✓ 정답' : '✓ 2회 만에 정답') + '</span>';
+    else if (done) badge = '<span class="q-badge no">✗ 오답</span>';
+    else if (tries.length) badge = '<span class="q-badge try">기회 1번 남음</span>';
+    var h = '<div class="blk blk-card quiz-card" id="q_' + key.replace('.', '_') + '"><div class="quiz-q"><span class="qn">' + b.num + '.</span><span style="flex:1">' + b.q + '</span>' + badge + '</div>';
+    h += b.opts.map(function (o, i) {
+      var cls = '', mark = CIRC[i] || (i + 1);
+      if (tries.indexOf(i) >= 0 && i !== b.ans) { cls = ' wrong'; mark = '✗'; }
+      if (done && i === b.ans) { cls = ' correct'; mark = '✓'; }
+      var dis = done || tries.indexOf(i) >= 0 ? ' disabled' : '';
+      return '<div class="quiz-opt' + cls + dis + '" data-qk="' + key + '" data-qi="' + i + '"><span class="oc">' + mark + '</span><span>' + o + '</span></div>';
+    }).join('');
+    var concept = m.concept && pageById(m.concept);
+    var clink = concept ? '<a class="concept-link" data-go="' + concept.id + '">📖 관련 개념 다시 보기: ' + concept.title + '</a>' : '';
+    if (done && correct) h += '<div class="quiz-fb ok show">' + b.ok + '</div>';
+    else if (done) h += '<div class="quiz-fb no show"><b>정답은 ' + (CIRC[b.ans] || '') + ' ' + b.opts[b.ans] + '입니다.</b><br>💡 ' + stripOk(b.ok) + '</div>' + clink;
+    else if (tries.length) h += '<div class="quiz-fb no show"><b>다시 생각해 봅시다.</b> ' + safeHint(b) + '</div>' + clink;
+    return h + '</div>';
+  }
+  function answerQuiz(key, i) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] };
+    if (st.done || st.tries.indexOf(i) >= 0) return;
+    st.tries.push(i);
+    if (i === b.ans) { st.done = true; st.first = st.tries.length === 1; }
+    else if (st.tries.length >= 2) { st.done = true; st.first = false; }
+    st.at = Date.now();
+    S.quiz[key] = st; save(true);
+    var el = document.getElementById('q_' + key.replace('.', '_'));
+    if (el) el.outerHTML = quizHTML(key);
+    refreshProgress();
+  }
+
+  /* ---------- 영상 ---------- */
+  function markVideo(v) { if (!S.videos[v]) { S.videos[v] = Date.now(); save(true); refreshProgress(); } var c = document.querySelector('[data-vid="' + v + '"]'); if (c) c.closest('.vid-card').classList.add('seen'); }
+  function playVideo(el, v) {
+    markVideo(v); el.closest('.vid-card').classList.add('seen');
+    if (location.protocol === 'file:') { window.open('https://youtu.be/' + v, '_blank', 'noopener'); return; }
+    el.removeAttribute('data-vid'); el.style.backgroundImage = 'none';
+    el.innerHTML = '<iframe src="https://www.youtube.com/embed/' + v + '?autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="영상"></iframe>';
+  }
+
+  /* ---------- 요약 통계 ---------- */
+  function summary() {
+    var tot = ITEMS.length, done = ITEMS.filter(itemDone).length;
+    var qn = QUIZ.length, first = 0, second = 0, wrong = 0, answered = 0;
+    QUIZ.forEach(function (q) { var s = S.quiz[q.key]; if (!s || !s.done) return; answered++; var c = s.tries[s.tries.length - 1] === q.b.ans; if (c && s.first) first++; else if (c) second++; else wrong++; });
+    var score = answered ? Math.round((first + second * 0.5) / answered * 100) : null;
+    var prov = score == null ? '-' : score >= 80 ? '상' : score >= 50 ? '중' : '하';
+    var level = answered === 0 ? '-' : answered < qn ? '미완료' : prov;
+    var as = ITEMS.filter(function (x) { return x.type === 'assess' && S.assess[x.key] != null; });
+    var self = as.length ? Math.round(as.reduce(function (a, x) { return a + (2 - Math.min(2, S.assess[x.key])); }, 0) / (as.length * 2) * 100) : null;
+    var t = 0; for (var p in S.time) t += S.time[p];
+    var vw = VIDS.filter(function (v) { return S.videos[v]; }).length;
+    return { progress: tot ? Math.round(done / tot * 100) : 0, done: done, total: tot, quizTotal: qn, answered: answered, prov: prov, first: first, second: second, wrong: wrong, score: score, level: level, self: self, timeSec: Math.round(t), videosWatched: vw, videosTotal: VIDS.length };
+  }
+
+  /* ---------- 리포트 ---------- */
+  function reportHTML() {
+    var s = summary(), who = P ? esc(profileText(P)) : '<a class="concept-link" data-act="profile">학습자 정보 입력하기</a>';
+    var h = '<div class="blk blk-card rep-head"><div class="rep-who">👤 ' + who + '</div><div class="rep-meta">' + esc(META.subject) + ' ' + esc(META.code) + ' · ' + esc(D.title) + '</div>' +
+      '<div class="rep-stats">' +
+      stat('진행률', s.progress + '%', s.done + ' / ' + s.total + ' 활동') +
+      stat('퀴즈 성취도', s.answered ? s.score + '점' : '–', s.answered ? '1차 정답 ' + s.first + ' · 2차 정답 ' + s.second + ' · 오답 ' + s.wrong : '아직 풀지 않음') +
+      stat('성취 수준', s.level === '미완료' ? s.prov + '<small>(잠정)</small>' : s.level, s.level === '미완료' ? '퀴즈 ' + (s.quizTotal - s.answered) + '문항 남음' : s.level === '상' ? '목표 도달' : s.level === '중' ? '부분 도달' : s.level === '하' ? '보충 필요' : '') +
+      stat('학습 시간', fmtTime(s.timeSec), VIDS.length ? '영상 시청 ' + s.videosWatched + ' / ' + s.videosTotal + '편' : '이 차시에서 보낸 시간') + '</div></div>';
+
+    // 맞춤 학습 경로
+    var wrongQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return st && st.done && !st.first; });
+    var notQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return !st || !st.done; });
+    h += '<div class="blk blk-card"><h3>🧭 나에게 맞는 다음 학습</h3>';
+    if (!s.answered) {
+      h += '<p>먼저 활동퀴즈를 풀어 보세요. 결과에 따라 맞춤 학습 경로를 안내합니다.</p>' + (notQ.length ? '<p><a class="concept-link" data-go="' + notQ[0].pid + '">❓ 활동퀴즈 풀러 가기</a></p>' : '');
+    } else {
+      var L = s.prov;
+      var msg = (s.level === '미완료' ? '(지금까지 푼 ' + s.answered + '문항 기준) ' : '') + (L === '상' ? '🎉 학습목표에 도달했어요! 심화 자료로 생각을 넓혀 보세요.'
+        : L === '중' ? '👍 핵심은 이해했어요. 헷갈린 개념만 다시 정리하면 완벽해요.'
+          : '💪 기본 개념을 다시 다져 볼까요? 아래 순서대로 복습한 뒤 틀린 문제에 다시 도전해 보세요.');
+      h += '<p class="rep-msg lv-' + L + '">' + msg + '</p>';
+      var rec = [];
+      if (L === '하') conceptPages.forEach(function (p) { rec.push([p.id, '📖 기본 개념: ' + p.title]); });
+      var seen = {};
+      wrongQ.forEach(function (q) { if (q.concept && !seen[q.concept]) { seen[q.concept] = 1; var p = pageById(q.concept); if (L !== '하') rec.push([p.id, '📖 ' + q.num + '번 관련 개념: ' + p.title]); } });
+      if (L === '상') PAGES.forEach(function (p) { if (/읽기|진로/.test(p.title) && p.cat === '정리') rec.push([p.id, (/진로/.test(p.title) ? '🧭 ' : '📚 ') + '심화: ' + p.title]); });
+      if (notQ.length) rec.push([notQ[0].pid, '❓ 아직 풀지 않은 퀴즈 ' + notQ.length + '문항']);
+      if (rec.length) h += '<ol class="rec-list">' + rec.map(function (r) { return '<li><a class="concept-link" data-go="' + r[0] + '">' + r[1] + '</a></li>'; }).join('') + '</ol>';
+      if (wrongQ.length) h += '<button class="btn btn-o" data-act="retry">🔁 틀린 문제 다시 풀기 (' + wrongQ.length + '문항)</button>';
+    }
+    h += '</div>';
+
+    // 문항별 결과
+    if (QUIZ.length) {
+      h += '<div class="blk blk-card"><h3>📝 문항별 결과</h3><table class="rep-tbl"><tr><th>번호</th><th>문항</th><th>결과</th><th>다시 보기</th></tr>';
+      QUIZ.forEach(function (q) {
+        var st = S.quiz[q.key], r = '<span class="muted">미응시</span>';
+        if (st && st.done) { var c = st.tries[st.tries.length - 1] === q.b.ans; r = c ? (st.first ? '<span class="r-ok">✓ 정답</span>' : '<span class="r-mid">△ 2차 정답</span>') : '<span class="r-no">✗ 오답</span>'; }
+        var cp = q.concept && pageById(q.concept);
+        h += '<tr><td>' + q.num + '</td><td><a class="concept-link" data-go="' + q.pid + '">' + esc(q.q.length > 48 ? q.q.slice(0, 48) + '…' : q.q) + '</a></td><td>' + r + '</td><td>' + (cp ? '<a class="concept-link" data-go="' + cp.id + '">' + esc(cp.title) + '</a>' : '') + '</td></tr>';
+      });
+      h += '</table></div>';
+    }
+
+    // 메타인지: 자기진단 vs 퀴즈
+    if (s.self != null) {
+      var cmp = '';
+      if (s.answered) {
+        var d = s.self - s.score;
+        cmp = d > 25 ? '스스로 평가한 이해도(' + s.self + '%)가 퀴즈 결과(' + s.score + '점)보다 높아요. 틀린 문항의 개념을 다시 확인해 보세요.'
+          : d < -25 ? '퀴즈 결과(' + s.score + '점)가 스스로 평가한 이해도(' + s.self + '%)보다 높아요. 생각보다 잘 이해하고 있으니 자신감을 가져도 좋아요!'
+            : '스스로 평가한 이해도(' + s.self + '%)와 퀴즈 결과(' + s.score + '점)가 비슷해요. 자신의 학습 상태를 잘 파악하고 있어요.';
+      } else cmp = '스스로 평가한 이해도는 ' + s.self + '%입니다. 퀴즈를 풀면 실제 결과와 비교해 드려요.';
+      h += '<div class="blk blk-card"><h3>🪞 스스로 진단 vs 실제 결과</h3><p>' + cmp + '</p></div>';
+    }
+
+    // 미작성 활동
+    var empty = ITEMS.filter(function (x) { return (x.type === 'input' || x.type === 'assess') && !itemDone(x); });
+    h += '<div class="blk blk-card"><h3>✍️ 아직 작성하지 않은 활동 ' + (empty.length ? '(' + empty.length + '개)' : '') + '</h3>';
+    if (!empty.length) h += '<p>모든 활동을 작성했어요. 훌륭해요!</p>';
+    else {
+      var byP = {}; empty.forEach(function (x) { (byP[x.pid] = byP[x.pid] || []).push(x); });
+      h += '<ul class="rec-list">' + Object.keys(byP).map(function (pid) { var p = pageById(pid); return '<li><a class="concept-link" data-go="' + pid + '">' + p.icon + ' ' + esc(p.title) + '</a> <span class="muted">· ' + byP[pid].length + '개</span></li>'; }).join('') + '</ul>';
+    }
+    h += '</div>';
+
+    // 내 답변 모아보기
+    var filled = ITEMS.filter(function (x) { return x.type === 'input' && itemDone(x); });
+    if (filled.length) {
+      h += '<details class="blk blk-card"><summary><b>🗂️ 내가 작성한 답변 모아보기 (' + filled.length + '개)</b></summary><div class="ans-list">' +
+        filled.map(function (x) { return '<div class="ans-item"><div class="ans-q">' + esc(x.label) + '</div><div class="ans-a">' + esc(S.inputs[x.key]).replace(/\n/g, '<br>') + '</div></div>'; }).join('') + '</div></details>';
+    }
+
+    var sub = S.submittedAt ? new Date(S.submittedAt) : null;
+    if (SUBMIT_URL) h += '<div class="blk blk-card submit-box' + (sub ? ' done' : '') + '"><div><b>' + (sub ? '✅ 선생님께 제출했어요' : '📤 학습 결과를 선생님께 제출하세요') + '</b><div class="muted small">' + (sub ? '제출 시각 ' + sub.toLocaleString('ko-KR') + ' · 내용을 고쳤다면 다시 제출하세요(최신 기록으로 바뀝니다).' : '버튼을 누르면 선생님의 구글 시트로 바로 전송됩니다.') + '</div></div><button class="btn btn-p" data-act="submit">' + (sub ? '🔁 다시 제출하기' : '📤 선생님께 제출하기') + '</button></div>';
+    h += '<div class="blk rep-actions"><button class="btn ' + (SUBMIT_URL ? 'btn-o' : 'btn-p') + '" data-act="export">📥 학습 기록 내려받기</button><button class="btn btn-o" data-act="print">🖨️ 인쇄 / PDF 저장</button><button class="btn btn-o" data-act="reset">↺ 처음부터 다시 하기</button></div>' +
+      '<p class="muted small">' + (SUBMIT_URL ? '제출 버튼이 작동하지 않으면 학습 기록을 내려받아 선생님께 파일로 제출하세요.' : '내려받은 학습 기록(.json) 파일을 구글 클래스룸 등으로 선생님께 제출하세요.') + ' 선생님은 교사용 대시보드에서 학급 결과를 한눈에 볼 수 있어요. 학습 기록은 이 기기의 브라우저에만 저장됩니다.</p>';
+    return h;
+    function stat(l, v, sub) { return '<div class="rep-stat"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + sub + '</div></div>'; }
+  }
+
+  /* ---------- 내보내기 ---------- */
+  function profileText(p) { return [p.school, p.grade ? p.grade + '학년' : '', p.cls ? p.cls + '반' : '', p.num ? p.num + '번' : '', p.name].filter(Boolean).join(' '); }
+  function buildRecord() {
+    var s = summary();
+    return {
+      format: 'gongju-aidt-v1', exportedAt: new Date().toISOString(),
+      lesson: { id: LID, subject: META.subject, code: META.code, title: D.title },
+      student: P, summary: s,
+      quiz: QUIZ.map(function (q) { var st = S.quiz[q.key] || { tries: [] }; var c = st.done && st.tries[st.tries.length - 1] === q.b.ans; return { num: q.num, question: q.q, answer: txt(q.b.opts[q.b.ans]), tries: st.tries.map(function (i) { return txt(q.b.opts[i]); }), done: !!st.done, correct: !!c, firstCorrect: !!(c && st.first), concept: q.concept ? pageById(q.concept).title : '' }; }),
+      responses: ITEMS.filter(function (x) { return x.type === 'input'; }).map(function (x) { return { key: x.key, page: pageById(x.pid).title, prompt: x.label, answer: S.inputs[x.key] || '' }; }),
+      selfAssessment: ITEMS.filter(function (x) { return x.type === 'assess'; }).map(function (x) { return { item: x.label, rating: S.assess[x.key] != null ? x.ratings[S.assess[x.key]] : '', score: S.assess[x.key] != null ? 2 - Math.min(2, S.assess[x.key]) : null }; }),
+      timePerPage: PAGES.map(function (p) { return { page: p.title, sec: Math.round(S.time[p.id] || 0) }; }),
+      videos: VIDS.map(function (v, i) { return { n: i + 1, id: v, watched: !!S.videos[v] }; })
+    };
+  }
+  function exportRecord() {
+    if (!P || !P.name) { openProfile(function () { exportRecord(); }); return; }
+    var rec = buildRecord();
+    var name = [P.grade && P.cls && P.num ? P.grade + String(P.cls).padStart(2, '0') + String(P.num).padStart(2, '0') : '', P.name, META.subject + META.code].filter(Boolean).join('_') + '.json';
+    var blob = new Blob([JSON.stringify(rec, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast('📥 ' + name + ' 파일을 내려받았어요.');
+  }
+  var submitting = false;
+  function submitRecord(btn) {
+    if (!P || !P.name) { openProfile(function () { submitRecord(); }); return; }
+    if (submitting) return; submitting = true;
+    if (btn) { btn.disabled = true; btn.textContent = '제출 중…'; }
+    tick(); save(true);
+    var body = JSON.stringify(buildRecord());
+    function done(ok, msg) {
+      submitting = false;
+      if (ok) { S.submittedAt = Date.now(); save(true); toast('✅ 선생님께 제출했어요!'); }
+      else toast('⚠️ 제출하지 못했어요. ' + (msg || '인터넷 연결을 확인하거나 학습 기록을 내려받아 제출하세요.'));
+      if (cur === 'report') render('report');
+    }
+    fetch(SUBMIT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { done(!!j.ok, j.error === 'closed' ? '선생님이 제출을 마감했어요.' : ''); })
+      .catch(function () {
+        fetch(SUBMIT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body })
+          .then(function () { done(true); }, function () { done(false); });
+      });
+  }
+
+  /* ---------- 학습자 정보 ---------- */
+  function openProfile(after) {
+    var p = P || {};
+    var ov = document.createElement('div'); ov.className = 'modal-ov';
+    ov.innerHTML = '<div class="modal"><h3>👋 학습자 정보</h3><p class="muted small">학습 기록에 함께 저장되어 선생님께 제출할 때 사용됩니다. 이 기기의 모든 차시에 공통으로 적용돼요.</p>' +
+      '<div class="pf-grid"><label>학교<input id="pf_school" value="' + esc(p.school || '') + '" placeholder="예: 공주고등학교"></label>' +
+      '<label>학년<input id="pf_grade" inputmode="numeric" value="' + esc(p.grade || '') + '" placeholder="1"></label>' +
+      '<label>반<input id="pf_cls" inputmode="numeric" value="' + esc(p.cls || '') + '" placeholder="3"></label>' +
+      '<label>번호<input id="pf_num" inputmode="numeric" value="' + esc(p.num || '') + '" placeholder="12"></label>' +
+      '<label class="full">이름<input id="pf_name" value="' + esc(p.name || '') + '" placeholder="홍길동"></label></div>' +
+      '<div class="modal-btns"><button class="btn btn-o" id="pf_skip">나중에</button><button class="btn btn-p" id="pf_ok">저장하고 시작</button></div></div>';
+    document.body.appendChild(ov);
+    setTimeout(function () { var n = document.getElementById('pf_name'); if (n) n.focus(); }, 50);
+    ov.querySelector('#pf_skip').onclick = function () { ov.remove(); };
+    ov.querySelector('#pf_ok').onclick = function () {
+      var g = function (id) { return document.getElementById(id).value.trim(); };
+      if (!g('pf_name')) { document.getElementById('pf_name').focus(); toast('이름을 입력해 주세요.'); return; }
+      P = { school: g('pf_school'), grade: g('pf_grade'), cls: g('pf_cls'), num: g('pf_num'), name: g('pf_name') };
+      sset(PKEY, P); ov.remove(); renderWho(); if (cur === 'report') render('report'); if (after) after();
+    };
+  }
+  function renderWho() { var w = document.getElementById('who'); if (w) w.innerHTML = P ? '👤 ' + esc(profileText(P)) + ' <a data-act="profile">수정</a>' : '👤 <a data-act="profile">학습자 정보 입력</a>'; }
+
+  /* ---------- 화면 ---------- */
+  var cur = null, pageStart = Date.now();
+  function tick() {
+    if (cur && !document.hidden) { var dt = (Date.now() - pageStart) / 1000; if (dt > 0 && dt < 600) S.time[cur] = (S.time[cur] || 0) + dt; }
+    pageStart = Date.now();
+  }
+  setInterval(function () { tick(); save(); }, 15000);
+  document.addEventListener('visibilitychange', function () { tick(); save(true); });
+  window.addEventListener('beforeunload', function () { tick(); save(true); });
+
+  function buildNav() {
+    var h = '', c = null;
+    PAGES.forEach(function (p) {
+      if (p.cat !== c) { h += '<div class="nav-cat">' + p.cat + '</div>'; c = p.cat; }
+      var st = pageState(p.id);
+      h += '<div class="nav-item' + (p.id === cur ? ' active' : '') + (p.id === 'report' ? ' nav-report' : '') + '" data-pid="' + p.id + '"><span class="icon">' + p.icon + '</span><span style="flex:1">' + p.title + '</span><span class="nst ' + st + '">' + (st === 'done' ? '✓' : st === 'part' ? '•' : '') + '</span></div>';
+    });
+    document.getElementById('nav').innerHTML = h;
+  }
+  function refreshProgress() {
+    var s = summary();
+    document.getElementById('pTxt').textContent = s.progress + '%';
+    document.getElementById('pBar').style.width = s.progress + '%';
+    var sub = document.getElementById('pSub'); if (sub) sub.textContent = s.done + ' / ' + s.total + ' 활동 완료' + (s.answered ? ' · 퀴즈 ' + s.score + '점' : '');
+    document.querySelectorAll('.nav-item').forEach(function (el) { var st = pageState(el.dataset.pid), n = el.querySelector('.nst'); n.className = 'nst ' + st; n.textContent = st === 'done' ? '✓' : st === 'part' ? '•' : ''; });
+  }
+  function pill() { var e = document.getElementById('savePill'); if (!e) return; var d = new Date(S.updated); e.textContent = '✔ 자동 저장됨 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); e.classList.add('flash'); setTimeout(function () { e.classList.remove('flash'); }, 600); }
+  function toast(m) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.classList.add('show'); }, 10); setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 2600); }
+
+  function render(pid) {
+    var pg = pageById(pid) || PAGES[0]; pid = pg.id;
+    tick(); cur = pid; S.last = pid;
+    if (S.visited.indexOf(pid) < 0) S.visited.push(pid);
+    var idx = PAGES.indexOf(pg), m = document.getElementById('main');
+    var prev = idx > 0 ? '<button class="btn btn-o" data-go="' + PAGES[idx - 1].id + '">← 이전</button>' : '<div></div>';
+    var next = idx < PAGES.length - 1 ? '<button class="btn btn-p" data-go="' + PAGES[idx + 1].id + '">' + (PAGES[idx + 1].id === 'report' ? '📊 학습 리포트 보기 →' : '다음 →') + '</button>' : '<a class="btn btn-p" href="../index.html">전체 차시로 →</a>';
+    m.innerHTML = '<div class="pg-hd"><div class="pg-top"><div class="pg-crumb">' + D.title + (pg.cat ? ' &gt; ' + pg.cat : '') + '</div><span class="save-pill" id="savePill">✔ 자동 저장</span></div><h2 class="pg-title">' + pg.icon + ' ' + pg.title + '</h2></div>' +
+      pg.blocks.map(function (b, bi) { return rBlock(b, pid, bi); }).join('') + '<div class="pg-nav">' + prev + next + '</div>';
+    if (location.hash !== '#' + pid) history.replaceState(null, '', '#' + pid);
+    document.querySelectorAll('.nav-item').forEach(function (el) { el.classList.toggle('active', el.dataset.pid === pid); });
+    save(true); refreshProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector('.sidebar').classList.remove('open');
+  }
+  window.go = render;
+
+  /* ---------- 이벤트(위임) ---------- */
+  document.addEventListener('input', function (e) {
+    var k = e.target.dataset && e.target.dataset.k; if (!k) return;
+    S.inputs[k] = e.target.value; save();
+    var g = e.target.closest('.input-group'); if (g) g.classList.toggle('filled', !!e.target.value.trim());
+    clearTimeout(refreshProgress._t); refreshProgress._t = setTimeout(refreshProgress, 400);
+  });
+  document.addEventListener('click', function (e) {
+    var vl = e.target.closest('[data-vlink]'); if (vl) { markVideo(vl.dataset.vlink); return; }
+    var t = e.target.closest('[data-go],[data-pid],[data-qk],[data-ak],[data-sk],[data-tid],[data-cid],[data-act],[data-vid],.flip-card');
+    if (!t) return;
+    if (t.dataset.vid) { playVideo(t, t.dataset.vid); return; }
+    if (t.dataset.go) { e.preventDefault(); render(t.dataset.go); return; }
+    if (t.dataset.pid) { render(t.dataset.pid); return; }
+    if (t.dataset.qk) { if (!t.classList.contains('disabled')) answerQuiz(t.dataset.qk, +t.dataset.qi); return; }
+    if (t.dataset.ak) { S.assess[t.dataset.ak] = +t.dataset.ri; t.parentElement.querySelectorAll('.r-btn').forEach(function (b) { b.classList.toggle('sel', b === t); }); save(); refreshProgress(); return; }
+    if (t.dataset.sk) { S.steps[t.dataset.sk] = !S.steps[t.dataset.sk]; t.classList.toggle('done', !!S.steps[t.dataset.sk]); save(); return; }
+    if (t.dataset.tid) { var p = t.parentElement; p.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === t); }); document.querySelectorAll('[id^="' + t.dataset.tid + '-"]').forEach(function (x) { x.classList.toggle('active', x.id === t.dataset.tid + '-' + t.dataset.ti); }); return; }
+    if (t.dataset.cid) { var c = document.getElementById(t.dataset.cid).textContent; (navigator.clipboard ? navigator.clipboard.writeText(c) : Promise.reject()).then(function () { t.textContent = '복사 완료 ✔'; }, function () { t.textContent = '직접 선택해 복사하세요'; }); setTimeout(function () { t.textContent = '코드 복사'; }, 2000); return; }
+    if (t.classList.contains('flip-card')) { t.classList.toggle('flipped'); return; }
+    var a = t.dataset.act;
+    if (a === 'profile') openProfile();
+    if (a === 'export') exportRecord();
+    if (a === 'submit') submitRecord(t);
+    if (a === 'print') window.print();
+    if (a === 'retry') { var first = null; QUIZ.forEach(function (q) { var st = S.quiz[q.key]; if (st && st.done && !st.first) { st.retried = (st.retried || 0) + 1; delete S.quiz[q.key]; if (!first) first = q.pid; } }); save(true); toast('틀린 문제를 다시 풀 수 있어요.'); if (first) render(first); }
+    if (a === 'reset') { if (confirm('이 차시의 모든 학습 기록(답변·퀴즈·진단)을 지울까요? 되돌릴 수 없습니다.')) { S = fresh(); save(true); buildNav(); render('p1'); } }
+  });
+
+  /* ---------- 시작 ---------- */
+  var side = document.querySelector('.sidebar-hd');
+  side.insertAdjacentHTML('afterbegin', '<a class="home-link" href="../index.html">← 전체 차시</a>');
+  document.querySelector('.sidebar-ft').insertAdjacentHTML('beforeend', '<div class="prog-sub" id="pSub"></div><div class="who" id="who"></div>');
+  buildNav(); renderWho();
+  var start = (location.hash || '').slice(1);
+  render(pageById(start) ? start : (S.last && pageById(S.last) ? S.last : 'p1'));
+  if (!P) setTimeout(function () { openProfile(); }, 400);
+})();
+
+</script>
+</body>
+</html>

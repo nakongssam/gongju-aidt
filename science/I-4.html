@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIDT — 2050년 공주시 인구 예측</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
+:root {
+  --bg:#F5F4F0;--surface:#fff;--surface-alt:#FAFAF7;--border:#E5E3DD;--border-lt:#EEECE6;
+  --txt:#1A1A1A;--txt2:#555;--txt3:#999;
+  --accent:#10b981;--accent-lt:#d1fae5;--accent-dk:#059669;
+  --blue:#3b82f6;--blue-lt:#eff6ff;--green:#10b981;--green-lt:#d1fae5;
+  --purple:#8b5cf6;--purple-lt:#ede9fe;--red:#ef4444;--red-lt:#fee2e2;
+  --radius:12px;--radius-sm:8px;--transition:.25s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--txt);line-height:1.75;font-size:15px;-webkit-font-smoothing:antialiased}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:290px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+.sidebar-hd{padding:20px 16px 14px;border-bottom:1px solid var(--border-lt)}
+.sidebar-hd h1{font-size:11px;font-weight:800;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+.sidebar-hd .topic{font-size:16px;font-weight:700;line-height:1.4}
+.sidebar-nav{flex:1;padding:8px 6px;overflow-y:auto}
+
+/* Navigation Categories & Items */
+.nav-cat{font-size:11px;font-weight:800;color:var(--txt3);margin:20px 12px 6px;padding-bottom:4px;border-bottom:1px solid var(--border-lt);letter-spacing:1px;}
+.nav-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;font-size:13px;color:var(--txt2);cursor:pointer;border-radius:var(--radius-sm);transition:var(--transition);line-height:1.4;word-break:keep-all;}
+.nav-item:hover{background:var(--surface-alt);color:var(--txt)}
+.nav-item.active{background:var(--accent-lt);color:var(--accent-dk);font-weight:700}
+.nav-item .icon{font-size:15px;flex-shrink:0;width:20px;text-align:center;margin-top:1px;}
+
+.sidebar-ft{padding:10px 16px;border-top:1px solid var(--border-lt)}
+.prog-label{font-size:11px;font-weight:600;color:var(--txt3);margin-bottom:4px}
+.prog-bg{height:4px;background:var(--border-lt);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+.content{flex:1;margin-left:290px;padding:28px 44px 80px;max-width:860px}
+.mobile-tog{display:none;position:fixed;top:10px;left:10px;z-index:200;width:38px;height:38px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);transition:transform .3s}
+  .sidebar.open{transform:translateX(0)}
+  .content{margin-left:0;padding:18px 14px 60px}
+  .mobile-tog{display:flex!important}
+}
+
+/* Page header */
+.pg-hd{margin-bottom:28px}
+.pg-crumb{font-size:12px;color:var(--txt3);margin-bottom:6px}
+.pg-title{font-size:26px;font-weight:800;line-height:1.3}
+
+/* Blocks */
+.blk{margin-bottom:22px}
+.blk-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px}
+.blk h3{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.blk h4{font-size:14px;font-weight:700;margin:16px 0 8px}
+.blk p,.blk li{font-size:14px;line-height:1.8;color:var(--txt)}
+.blk p+p{margin-top:10px}
+.blk ul{padding-left:20px;margin:8px 0}
+.blk ul li{margin-bottom:4px}
+
+/* Callout */
+.callout{border-left:4px solid var(--accent);background:var(--accent-lt);padding:14px 18px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:18px}
+.callout.blue{background:var(--blue-lt);border-color:var(--blue)}
+.callout.green{background:var(--green-lt);border-color:var(--green)}
+.callout.purple{background:var(--purple-lt);border-color:var(--purple)}
+.callout .c-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.callout .c-body{font-size:14px;line-height:1.7;color:var(--txt2)}
+
+/* Objectives */
+.obj-list{list-style:none;padding:0}
+.obj-list li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;font-size:14px}
+.obj-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+
+/* Input */
+.input-group{margin-bottom:14px}
+.input-group label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+.input-group textarea,.input-group input[type=text]{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;font-family:inherit;line-height:1.6;resize:vertical;background:var(--bg);transition:var(--transition)}
+.input-group textarea:focus,.input-group input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Steps */
+.steps{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
+.steps .s-hd{padding:14px 18px;border-bottom:1px solid var(--border-lt);font-size:14px;font-weight:700}
+.step{padding:14px 18px;border-bottom:1px solid var(--border-lt);display:flex;gap:12px;cursor:pointer;transition:var(--transition)}
+.step:last-child{border-bottom:none}
+.step:hover{background:var(--surface-alt)}
+.step .s-n{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--txt3);flex-shrink:0;transition:var(--transition)}
+.step.done .s-n{background:var(--green);border-color:var(--green);color:#fff}
+.step .s-c h4{font-size:14px;font-weight:600;margin:0 0 3px}
+.step .s-c p{font-size:13px;color:var(--txt2);margin:0}
+
+/* Tabs */
+.tabs-nav{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:0}
+.tab-btn{padding:9px 18px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt3);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:var(--transition)}
+.tab-btn:hover{color:var(--txt)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-panel{display:none;padding:16px 0;font-size:14px;line-height:1.8}
+.tab-panel.active{display:block}
+
+/* Flip Cards */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:18px}
+.flip-card{height:130px;perspective:1000px;cursor:pointer}
+.flip-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.flip-card.flipped .flip-inner{transform:rotateY(180deg)}
+.flip-front,.flip-back{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;text-align:center;padding:14px;font-size:14px}
+.flip-front{background:var(--accent-lt);border:1px solid var(--accent);font-weight:700;color:var(--accent-dk)}
+.flip-back{background:var(--surface);border:1px solid var(--border);transform:rotateY(180deg);color:var(--txt2);font-size:13px;line-height:1.5}
+
+/* Quiz */
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;gap:8px}
+.quiz-q .qn{color:var(--accent);font-weight:800}
+.quiz-opt{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px;cursor:pointer;transition:var(--transition);font-size:14px}
+.quiz-opt:hover{border-color:var(--accent);background:var(--accent-lt)}
+.quiz-opt.correct{border-color:var(--green);background:var(--green-lt)}
+.quiz-opt.wrong{border-color:var(--red);background:var(--red-lt)}
+.quiz-opt .oc{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:var(--transition)}
+.quiz-opt.correct .oc{border-color:var(--green);background:var(--green);color:#fff}
+.quiz-opt.wrong .oc{border-color:var(--red);background:var(--red);color:#fff}
+.quiz-fb{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-top:10px;display:none}
+.quiz-fb.show{display:block}
+.quiz-fb.ok{background:var(--green-lt);color:var(--green)}
+.quiz-fb.no{background:var(--red-lt);color:var(--red)}
+
+/* Prediction */
+.pred-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pred-row label{font-size:13px;font-weight:600;min-width:100px}
+.pred-row input{width:130px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;text-align:center}
+.pred-row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Assessment - Segmented Control */
+.assess-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--border-lt);flex-wrap:wrap}
+.assess-item:last-child{border-bottom:none}
+.assess-item>span{flex:1;min-width:200px;font-size:14px;line-height:1.6;color:var(--txt)}
+.rating-g{display:inline-flex;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;flex-shrink:0}
+.r-btn{padding:6px 16px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt2);background:transparent;border:none;border-radius:6px;cursor:pointer;transition:var(--transition);min-width:54px}
+.r-btn:hover{color:var(--txt)}
+.r-btn.sel{background:var(--surface);color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.r-btn:nth-child(1).sel{color:var(--green);background:var(--green-lt)}
+.r-btn:nth-child(2).sel{color:#d97706;background:#fef3c7}
+.r-btn:nth-child(3).sel{color:var(--red);background:var(--red-lt)}
+
+/* Link Card */
+.link-card{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--txt);transition:var(--transition);margin-bottom:12px}
+.link-card:hover{border-color:var(--accent);background:var(--surface-alt);transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,0.04)}
+.link-card .l-icon{font-size:24px;flex-shrink:0;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--accent-lt);border-radius:var(--radius-sm)}
+.link-card .l-info{flex:1;min-width:0}
+.link-card .l-info h4{font-size:14px;font-weight:700;margin:0 0 2px;color:var(--txt)}
+.link-card .l-info p{font-size:13px;line-height:1.5;color:var(--txt2);margin:0}
+.link-card::after{content:"↗";font-size:14px;color:var(--txt3);flex-shrink:0;margin-left:4px}
+
+/* Btn */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:var(--transition)}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:var(--accent-dk);transform:translateY(-1px)}
+.btn-o{background:transparent;border:1px solid var(--border);color:var(--txt2)}
+.btn-o:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Page nav */
+.pg-nav{display:flex;justify-content:space-between;margin-top:44px;padding-top:20px;border-top:1px solid var(--border-lt)}
+.pg-nav .btn{min-width:130px;justify-content:center}
+
+/* Animation */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.content>*{animation:fadeIn .35s ease both}
+
+
+/* ===== AIDT 추가 스타일 ===== */
+.home-link{display:inline-block;font-size:12px;color:var(--txt3);text-decoration:none;margin-bottom:8px}
+.home-link:hover{color:var(--accent)}
+.nav-item{display:flex;align-items:center}
+.nst{width:18px;text-align:center;font-size:12px;font-weight:800;color:var(--txt3)}
+.nst.done{color:var(--accent)}
+.nst.part{color:#f59e0b;font-size:16px}
+.nav-report{margin-top:2px}
+.prog-sub{font-size:11px;color:var(--txt3);margin-top:6px}
+.who{font-size:12px;color:var(--txt2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border-lt)}
+.who a{color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:4px}
+.pg-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.save-pill{font-size:11px;color:var(--accent-dk);background:var(--accent-lt);padding:3px 10px;border-radius:12px;white-space:nowrap;transition:transform .2s}
+.save-pill.flash{transform:scale(1.06)}
+.input-group.filled label::after{content:" ✓";color:var(--accent);font-weight:800}
+.auto-note{font-size:12px;color:var(--txt3);margin-top:8px}
+/* 퀴즈 */
+.quiz-q{align-items:flex-start}
+.q-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;height:fit-content}
+.q-badge.ok{background:var(--green-lt);color:var(--accent-dk)}
+.q-badge.no{background:var(--red-lt);color:var(--red)}
+.q-badge.try{background:#fef3c7;color:#b45309}
+.quiz-opt .oc{font-size:11px;font-weight:700;color:var(--txt3)}
+.quiz-opt:not(.disabled):hover{border-color:var(--accent);background:var(--surface-alt)}
+.quiz-opt.disabled{cursor:default}
+.quiz-opt.wrong .oc,.quiz-opt.correct .oc{color:#fff}
+.concept-link{display:inline-block;color:var(--blue);cursor:pointer;font-size:13px;font-weight:600;text-decoration:none;margin-top:8px}
+.concept-link:hover{text-decoration:underline}
+/* 코드 */
+.code-blk{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:18px}
+.code-hd{background:#2d2d2d;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;color:#e0e0e0;font-size:13px;font-weight:600;font-family:monospace}
+.code-copy{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#e0e0e0;border-radius:4px;padding:5px 10px;font-size:12px;cursor:pointer}
+.code-bd{background:#1e1e1e;padding:16px;overflow-x:auto}
+.code-bd pre{margin:0;color:#d4d4d4;font-family:Consolas,Monaco,monospace;font-size:14px;line-height:1.6}
+.link-card.wokwi{background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-color:#ffb74d}
+/* 리포트 */
+.rep-who{font-size:16px;font-weight:700}
+.rep-meta{font-size:13px;color:var(--txt3);margin-bottom:14px}
+.rep-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.rep-stat{background:var(--surface-alt);border:1px solid var(--border-lt);border-radius:var(--radius-sm);padding:12px}
+.rep-stat .l{font-size:12px;color:var(--txt3)}
+.rep-stat .v{font-size:24px;font-weight:800;color:var(--accent-dk);line-height:1.3}
+.rep-stat .s{font-size:11px;color:var(--txt2)}
+.rep-msg{font-weight:600;padding:10px 14px;border-radius:var(--radius-sm);background:var(--blue-lt)}
+.rep-msg.lv-상{background:var(--green-lt)}
+.rep-msg.lv-하{background:#fef3c7}
+.rec-list{margin:10px 0 12px 20px}
+.rec-list li{margin:4px 0}
+.rec-list .concept-link{margin-top:0}
+.rep-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.rep-tbl th,.rep-tbl td{border-bottom:1px solid var(--border-lt);padding:7px 6px;text-align:left;vertical-align:top}
+.rep-tbl th{color:var(--txt3);font-weight:600;font-size:12px}
+.rep-tbl .concept-link{margin:0;font-weight:500}
+.r-ok{color:var(--accent-dk);font-weight:700}.r-mid{color:#d97706;font-weight:700}.r-no{color:var(--red);font-weight:700}
+.muted{color:var(--txt3)}.small{font-size:12px}
+details.blk-card summary{cursor:pointer}
+.ans-item{padding:10px 0;border-bottom:1px solid var(--border-lt)}
+.ans-q{font-size:12px;color:var(--txt3);margin-bottom:3px}
+.ans-a{font-size:14px}
+.rep-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* 모달·토스트 */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:var(--radius);padding:22px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:4px}
+.pf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}
+.pf-grid label{font-size:12px;color:var(--txt2);display:flex;flex-direction:column;gap:4px}
+.pf-grid label:first-child,.pf-grid label.full{grid-column:1/-1}
+.pf-grid input{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px}
+.modal-btns{display:flex;justify-content:flex-end;gap:8px}
+.modal-btns .btn{min-width:0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:#1f2937;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.3s;z-index:600}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:900px){
+  .content{padding-top:62px!important}
+  .rep-stats{grid-template-columns:1fr 1fr}
+}
+@media print{
+  .sidebar,.mobile-tog,.pg-nav,.rep-actions,.save-pill{display:none!important}
+  .content{margin-left:0!important;max-width:none!important;padding:0!important}
+  body{background:#fff}
+  details{display:block}details>*{display:block}
+}
+.rep-stat .v small{font-size:12px;font-weight:600;color:var(--txt3);margin-left:3px}
+/* 영상 */
+.vid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.vid-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.vid-card.seen{border-color:var(--accent)}
+.vid-thumb{position:relative;aspect-ratio:16/9;background:#111 center/cover no-repeat;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.vid-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid-play{width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;padding-left:4px;transition:.2s}
+.vid-thumb:hover .vid-play{background:#e11d48;transform:scale(1.08)}
+.vid-cap{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px}
+.vid-cap a{margin-left:auto;font-size:12px;color:var(--txt3);text-decoration:none}
+.vid-cap a:hover{color:var(--accent)}
+.vid-seen{display:none;font-size:11px;font-weight:700;color:var(--accent-dk);background:var(--accent-lt);padding:1px 8px;border-radius:10px}
+.vid-card.seen .vid-seen{display:inline}
+.submit-box{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border:2px solid var(--accent)!important;background:var(--accent-lt)!important}
+.submit-box.done{border-color:var(--border)!important;background:var(--surface)!important}
+.submit-box .btn:disabled{opacity:.6;cursor:wait}
+@media(max-width:900px){.vid-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="mobile-tog" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</div>
+<div class="app">
+<aside class="sidebar">
+  <div class="sidebar-hd">
+    <h1>AIDT 일반고·특성화 과학 · Ⅰ-4</h1>
+    <div class="topic">빅데이터로 예측하는<br>2050년 공주시의 인구</div>
+  </div>
+  <nav class="sidebar-nav" id="nav"></nav>
+  <div class="sidebar-ft">
+    <div class="prog-label">진행률 <span id="pTxt">0%</span></div>
+    <div class="prog-bg"><div class="prog-fill" id="pBar" style="width:0%"></div></div>
+  </div>
+</aside>
+<main class="content" id="main"></main>
+</div>
+<script src="../aidt-config.js"></script>
+<script>
+const META = {"id": "sci-I-4", "subject": "과학", "code": "Ⅰ-4", "module": "공통 모듈", "n": 4, "roman": "I", "videos": ["gy8dIq101ls", "n83x3z7k-do", "e35qpC8026Q"]};
+const D = {"title": "2050년 공주시 인구 예측", "pages": [{"id": "p1", "cat": "도입", "icon": "🎯", "title": "학습목표", "blocks": [{"t": "html", "v": "\n          <div class=\"blk\" style=\"text-align:center;padding:20px 0\">\n            <div style=\"font-size:12px;color:var(--accent);font-weight:700;letter-spacing:2px;margin-bottom:6px\">과학 × 정보 융합<\/div>\n            <h2 style=\"font-size:28px;font-weight:900;margin-bottom:8px\">빅데이터로 예측하는<br>2050년 공주시의 인구<\/h2>\n            <div style=\"display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px\">\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--accent-lt);color:var(--accent-dk)\">빅데이터<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--blue-lt);color:var(--blue)\">선형회귀<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--purple-lt);color:var(--purple)\">도시환경<\/span>\n            <\/div>\n          <\/div>\n        "}, {"t": "objectives", "items": ["빅데이터의 개념을 이해하고, 인구 변화를 예측하기 위해 필요한 데이터를 수집·분석·시각화할 수 있다.", "데이터를 분석하여 인구 변화의 추세를 파악하고, 그 변화가 자연과 도시 환경에 미치는 영향을 설명할 수 있다."]}]}, {"id": "p2", "cat": "도입", "icon": "💭", "title": "생각해요", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 공주의 인구, 25년 뒤에는 어떻게 될까?<\/h3>\n          <p>우리가 사는 공주시는 백제의 옛 수도였던 유서 깊은 도시입니다. 하지만 최근 통계를 보면 공주시의 인구는 매년 조금씩 줄어들고 있습니다. 농촌의 고령화, 청년의 도시 이주, 출산율 감소 등 여러 요인이 복합적으로 작용한 결과입니다.<\/p>\n          <p>그렇다면 <strong>25년 뒤인 2050년<\/strong>, 공주시의 인구는 어떻게 변할까요? 단순히 감으로 짐작하는 것이 아니라, 지금까지 쌓인 <strong>빅데이터<\/strong>를 활용해 과학적으로 예측해 볼 수는 없을까요? 그리고 그 예측 결과는 우리 도시의 미래를 어떻게 바꿔놓을까요?<\/p>\n          <p style=\"margin-top:12px;font-weight:600;color:var(--accent)\">데이터는 미래를 보여주는 거울입니다. 그 거울을 들여다보는 방법을 함께 배워봅시다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ 인구가 늘면, 줄면 어떤 일이?<\/h4><p>도시의 인구가 변하면 우리의 생활과 자연환경에 어떤 영향이 있을까요? 친구들과 자유롭게 의견을 나누어 봅시다.<\/p><\/div>"}, {"t": "input", "label": "▶ 나의 생각 — 인구가 줄어들면 무엇이 변할까?", "ph": "예: 빈집이 늘어나고, 학교가 통폐합되며, 자연이 회복될 수도 있다.", "rows": 2}, {"t": "input", "label": "▶ 우리 모둠의 생각", "ph": "모둠원들과 나눈 의견을 정리해 보세요.", "rows": 3}]}, {"id": "p3", "cat": "알아봐요", "icon": "📖", "title": "1. 빅데이터의 5V", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 빅데이터(Big Data)란?<\/h3>\n          <p><strong>빅데이터<\/strong>는 단순히 '많은 데이터'가 아니라, 기존 방식으로 처리하기 어려울 만큼 규모가 크고, 매우 빠르게 생성되며, 형식이 다양한 데이터를 의미합니다. 인구 통계, 기상 관측, SNS 글, 카드 결제 내역, 위성사진 등 우리 일상의 거의 모든 활동이 데이터로 남고 있습니다.<\/p>\n          <p>빅데이터의 특징은 다음 <strong>5V<\/strong>로 정리할 수 있습니다.<\/p>\n        <\/div>"}, {"t": "cards", "items": [{"front": "Volume (규모)", "back": "테라바이트·페타바이트를 넘어 엄청난 양의 데이터가 축적된다. 인구 통계 수십 년치 등이 대표적"}, {"front": "Velocity (속도)", "back": "데이터가 실시간으로 매우 빠르게 생성·전송된다. SNS 게시물, 센서 신호 등"}, {"front": "Variety (다양성)", "back": "숫자·텍스트·이미지·영상·소리 등 형식이 매우 다양하다"}, {"front": "Veracity (정확성)", "back": "데이터의 신뢰성과 진실성. 잘못된 데이터는 잘못된 결론을 낳는다"}, {"front": "Value (가치)", "back": "데이터를 분석해 의미 있는 인사이트와 의사결정을 도출하는 능력"}]}, {"t": "callout", "variant": "blue", "title": "💡 빅데이터로 무엇을 할 수 있을까?", "body": "빅데이터는 단순한 통계 그 이상입니다. 과거의 패턴을 분석해 미래를 예측하고, 보이지 않던 관계를 찾아내며, 개인 맞춤형 서비스를 가능하게 합니다.<br>• <strong>인구 예측<\/strong>: 도시 계획·복지 정책 설계의 기반<br>• <strong>기상 예측<\/strong>: 자연재해 대비, 농업 의사결정<br>• <strong>교통 분석<\/strong>: 신호 체계 최적화, 대중교통 노선 설계<br>• <strong>의료 진단<\/strong>: 질병 예측 모델, 신약 개발"}]}, {"id": "p4", "cat": "알아봐요", "icon": "📖", "title": "2. 데이터 처리 4단계", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 데이터 분석의 흐름<\/h3>\n          <p>빅데이터를 활용한 분석은 다음과 같은 4단계를 거칩니다. 각 단계에서 어떤 일이 일어나는지 살펴봅시다.<\/p>\n        <\/div>"}, {"t": "steps", "title": "데이터 처리의 4단계", "items": [{"title": "1. 문제 상황 이해", "desc": "무엇을 알아내고 싶은지, 어떤 의사결정에 필요한지 명확히 한다. (예: \"공주시의 2050년 인구는?\")"}, {"title": "2. 데이터 수집", "desc": "필요한 데이터를 공공데이터·민간데이터·웹크롤링·직접 수집 등을 통해 모은다."}, {"title": "3. 데이터 탐색", "desc": "수집한 데이터의 구조와 특성을 파악한다. 누락된 값(결측치)·이상값을 점검하고 기초 통계를 확인한다."}, {"title": "4. 데이터 전처리", "desc": "분석에 적합한 형태로 데이터를 다듬는다. 정제·통합·축소·변환을 수행한다."}]}, {"t": "tabs", "tabs": [{"label": "공공데이터", "content": "<p><strong>국가·지자체·공공기관이 공개하는 데이터<\/strong><\/p><p>대부분 무료이며 신뢰도가 높다. 통계청, 행정안전부, 기상청 등에서 제공한다.<\/p><ul><li><strong>공공데이터포털<\/strong> data.go.kr — 인구, 행정, 교통 등 전 분야<\/li><li><strong>기상청 데이터<\/strong> data.kma.go.kr — 기상·기후 관측 자료<\/li><li><strong>KOSIS 국가통계포털<\/strong> kosis.kr — 인구·경제 통계<\/li><\/ul>"}, {"label": "민간데이터", "content": "<p><strong>기업·연구기관·커뮤니티가 제공하는 데이터<\/strong><\/p><p>특정 주제에 특화되어 있고, 대회용 정제된 데이터셋이 많다.<\/p><ul><li><strong>Kaggle<\/strong> kaggle.com — 세계 최대 데이터 사이언스 플랫폼<\/li><li><strong>DACON<\/strong> dacon.io — 국내 데이터 경진대회 플랫폼<\/li><li><strong>AI Hub<\/strong> aihub.or.kr — AI 학습용 한국어 데이터셋<\/li><\/ul>"}, {"label": "웹크롤링", "content": "<p><strong>웹사이트의 정보를 프로그램으로 자동 수집<\/strong><\/p><p>Python의 BeautifulSoup, Selenium 같은 도구를 사용한다. 단, 사이트 이용약관과 저작권을 반드시 확인해야 한다.<\/p>"}, {"label": "직접 수집", "content": "<p><strong>설문조사, 실험, 센서 측정 등<\/strong><\/p><p>연구 목적에 가장 잘 맞는 데이터를 얻을 수 있으나 시간과 비용이 든다. 학교에서 자주 사용하는 방법이다.<\/p>"}]}, {"t": "callout", "variant": "purple", "title": "💡 데이터 전처리 4가지 — 정제·통합·축소·변환", "body": "• <strong>정제(Cleaning)<\/strong>: 결측치(빈 값)·이상치(튀는 값)를 처리<br>• <strong>통합(Integration)<\/strong>: 여러 출처의 데이터를 하나로 합치기<br>• <strong>축소(Reduction)<\/strong>: 분석에 불필요한 데이터를 줄이기<br>• <strong>변환(Transformation)<\/strong>: 정규화·집계 등 분석에 적합한 형태로 바꾸기"}]}, {"id": "p5", "cat": "활동해요", "icon": "✏️", "title": "1. 데이터 수집과 시각화", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 공주시 인구 데이터 모으기<\/h3>\n          <p>먼저 공주시의 연도별 인구 데이터를 모아 봅시다. KOSIS 또는 공공데이터포털에서 '공주시 주민등록 인구통계'를 검색해 CSV 파일로 다운로드할 수 있습니다.<\/p>\n        <\/div>"}, {"t": "link", "url": "https://kosis.kr/", "icon": "📊", "title": "KOSIS 국가통계포털", "desc": "통계청이 운영하는 한국 통계 종합 포털. 공주시 인구통계를 CSV로 내려받을 수 있어요"}, {"t": "link", "url": "https://www.data.go.kr/", "icon": "🏛️", "title": "공공데이터포털 (data.go.kr)", "desc": "행정안전부가 운영하는 공공데이터 통합 포털. 인구·경제·환경 등 다양한 분야 데이터 제공"}, {"t": "input", "label": "우리 모둠이 수집한 데이터", "ph": "예: 2000년~2024년 공주시 연도별 주민등록 인구. KOSIS에서 CSV로 다운로드함.", "rows": 2}, {"t": "html", "v": "<div class=\"blk\" style=\"margin-top:18px\">\n          <h3>▶ 시각화 — 데이터를 그림으로 보기<\/h3>\n          <p>숫자로만 된 표보다 그래프로 그리면 패턴이 한눈에 보입니다. 데이터 분석에 자주 쓰이는 시각화 방법을 살펴봅시다.<\/p>\n        <\/div>"}, {"t": "cards", "items": [{"front": "꺾은선그래프", "back": "시간에 따른 변화를 나타낼 때. 인구 변화·기온 변화 등 추세 분석에 적합"}, {"front": "막대그래프", "back": "항목 간의 값을 비교할 때. 연령별 인구 분포 등"}, {"front": "산점도", "back": "두 변수의 관계를 점으로 표현. 출산율과 인구 증가율의 관계 등"}, {"front": "박스플롯", "back": "데이터의 분포(중앙값·사분위수·이상값)를 시각화. 데이터 탐색 단계에서 유용"}]}, {"t": "callout", "variant": "green", "title": "💡 Datasaurus Dozen — 통계만 보면 안 되는 이유", "body": "평균·표준편차 같은 통계값은 같아도, 실제로 그래프로 그려보면 데이터의 모양이 완전히 다를 수 있습니다. <strong>Datasaurus Dozen<\/strong>은 같은 통계값을 가지면서도 공룡, 별, 줄무늬 등 전혀 다른 모양으로 분포하는 12가지 데이터셋입니다. <strong>데이터는 반드시 시각화해 봐야 한다<\/strong>는 교훈을 줍니다."}]}, {"id": "p6", "cat": "활동해요", "icon": "💻", "title": "2. Python 선형회귀로 예측하기", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 선형회귀란?<\/h3>\n          <p><strong>선형회귀(Linear Regression)<\/strong>는 두 변수 사이의 직선적인 관계를 찾는 가장 기본적인 예측 모델입니다. 우리는 '연도(x)'와 '인구(y)' 사이의 관계를 직선으로 모델링하여, 미래의 연도를 입력하면 그때의 인구를 예측할 수 있습니다.<\/p>\n          <p>수식으로 표현하면 <strong>y = ax + b<\/strong> 입니다. 데이터의 흐름을 가장 잘 설명하는 a(기울기)와 b(절편)를 컴퓨터가 자동으로 계산해 줍니다.<\/p>\n        <\/div>"}, {"t": "link", "url": "https://colab.research.google.com/", "icon": "🐍", "title": "Google Colab — 무료 Python 노트북", "desc": "브라우저에서 바로 실행 가능한 Python 환경. 새 노트북을 만들어 아래 코드를 셀에 붙여넣어 실행해 보세요"}, {"t": "html", "v": "<div class=\"blk\"><h4 style=\"color:var(--accent-dk)\">[코드 1] CSV 데이터 불러오기와 탐색<\/h4><p>KOSIS에서 받은 공주시 인구 CSV 파일을 Colab에 업로드한 뒤 pandas로 읽어옵니다.<\/p><\/div>"}, {"t": "code", "lang": "Python (Google Colab)", "code": "import pandas as pd\n\n# 한국 CSV는 보통 cp949 인코딩 (필요시 'utf-8'로 바꿔 시도)\ndf = pd.read_csv(\"gongju_population.csv\", encoding=\"cp949\")\n\n# 데이터 살펴보기\nprint(df.head())     # 처음 5줄\nprint(df.info())     # 자료형·결측치 확인\nprint(df.describe()) # 기초 통계\n\n# 컬럼명 정리 (예: '시점' → 'year', '총인구' → 'population')\ndf.columns = ['year', 'population']\ndf['year'] = df['year'].astype(int)\ndf['population'] = df['population'].astype(int)\nprint(df.head())"}, {"t": "html", "v": "<div class=\"blk\"><h4 style=\"color:var(--blue)\">[코드 2] 시각화 — 인구 변화의 흐름 보기<\/h4><p>꺾은선그래프로 연도별 인구의 변화를 시각화합니다.<\/p><\/div>"}, {"t": "code", "lang": "Python (Google Colab)", "code": "import matplotlib.pyplot as plt\n\nplt.figure(figsize=(10,5))\nplt.plot(df['year'], df['population'], marker='o', color='#10b981')\nplt.title(\"Gongju Population by Year\")\nplt.xlabel(\"Year\")\nplt.ylabel(\"Population\")\nplt.grid(True, alpha=0.3)\nplt.tight_layout()\nplt.show()"}, {"t": "html", "v": "<div class=\"blk\"><h4 style=\"color:var(--purple)\">[코드 3] 선형회귀로 2050년 예측<\/h4><p>scikit-learn의 LinearRegression을 사용해 직선 모델을 학습하고, 2050년의 예상 인구를 계산합니다.<\/p><\/div>"}, {"t": "code", "lang": "Python (Google Colab)", "code": "from sklearn.linear_model import LinearRegression\nimport numpy as np\n\n# X(연도)는 2차원 배열로 reshape, y(인구)는 1차원\nX = df['year'].values.reshape(-1, 1)\ny = df['population'].values\n\n# 모델 학습\nmodel = LinearRegression()\nmodel.fit(X, y)\n\nprint(f\"기울기(a): {model.coef_[0]:.2f}\")\nprint(f\"절편(b):  {model.intercept_:.2f}\")\nprint(f\"결정계수 R²: {model.score(X, y):.3f}\")\n\n# 2050년 예측\npred_2050 = model.predict([[2050]])[0]\nprint(f\"\\n2050년 공주시 예상 인구: {int(pred_2050):,} 명\")\n\n# 회귀선과 예측값을 함께 시각화\nplt.figure(figsize=(10,5))\nplt.scatter(df['year'], df['population'], color='#10b981', label='Actual')\n\nyears_future = np.arange(df['year'].min(), 2051).reshape(-1,1)\nplt.plot(years_future, model.predict(years_future),\n         color='#3b82f6', label='Regression line')\nplt.scatter([2050], [pred_2050], color='#ef4444', s=120,\n            zorder=5, label=f'2050 Prediction: {int(pred_2050):,}')\nplt.xlabel('Year'); plt.ylabel('Population')\nplt.title('Gongju Population Prediction (Linear Regression)')\nplt.legend(); plt.grid(True, alpha=0.3)\nplt.tight_layout(); plt.show()"}]}, {"id": "p7", "cat": "활동해요", "icon": "💡", "title": "3. 결과 해석과 정책 제안", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 우리의 예측 결과는?<\/h3>\n          <p>위 코드를 실행해 본 결과, 2050년 공주시 예상 인구는 얼마였나요? 이 수치가 의미하는 바를 해석해 봅시다.<\/p>\n        <\/div>"}, {"t": "input", "label": "1. 우리 모둠이 예측한 2050년 공주시 인구는?", "ph": "예: 약 75,000명", "rows": 1}, {"t": "input", "label": "2. 모델의 결정계수(R²)는? 신뢰할 만한 예측인가?", "ph": "예: R² = 0.92로 추세 설명력이 높지만, 출산율·이주 등을 반영하지 못함", "rows": 2}, {"t": "html", "v": "<div class=\"blk\" style=\"margin-top:18px\">\n          <h3>▶ 인구 변화가 가져올 변화 — 자연과 도시<\/h3>\n          <p>인구 감소가 도시에 어떤 변화를 가져올지 생각해 봅시다. 위기일 수도, 새로운 기회일 수도 있습니다.<\/p>\n        <\/div>"}, {"t": "prediction", "items": [{"label": "긍정적 변화 1", "ph": "예: 빈 공간이 늘어나 녹지·생태계 복원 기회"}, {"label": "긍정적 변화 2", "ph": "예: 1인당 자원 사용량 여유, 1인 가구 맞춤 서비스 발전"}, {"label": "부정적 변화 1", "ph": "예: 학교 통폐합, 의료 서비스 접근성 저하"}, {"label": "부정적 변화 2", "ph": "예: 빈집·폐가 증가, 지역 경제 위축"}]}, {"t": "html", "v": "<div class=\"blk\" style=\"margin-top:18px\">\n          <h3>▶ 우리가 시장이라면? — 정책 제안<\/h3>\n          <p>예측 결과를 바탕으로 공주시의 미래를 위한 정책을 제안해 봅시다. <strong>Canva<\/strong>나 PowerPoint를 활용해 발표 자료를 만들 수 있습니다.<\/p>\n        <\/div>"}, {"t": "input", "label": "1. 인구 감소에 대비한 우리 모둠의 정책 1순위", "ph": "예: 청년 창업 지원금 확대 + 빈집을 코워킹스페이스로 리모델링", "rows": 2}, {"t": "input", "label": "2. 인구 감소를 '새로운 기회'로 만드는 아이디어", "ph": "예: 자연 복원 + 생태 관광 활성화로 새로운 일자리 창출", "rows": 2}, {"t": "input", "label": "3. Canva·PPT로 만든 우리 모둠의 발표 핵심 메시지", "ph": "예: 공주, 작지만 강한 친환경 스마트 도시로!", "rows": 2}]}, {"id": "p8", "cat": "정리", "icon": "✅", "title": "스스로 진단하기", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 이번 수업에서 무엇을 배웠는지 점검해 봅시다<\/h3>\n          <p>아래 항목을 읽고, 자신의 이해 정도를 솔직하게 평가해 봅시다. 부족한 부분은 모둠 친구나 선생님께 도움을 요청하면 좋습니다.<\/p>\n        <\/div>"}, {"t": "assessment", "title": "학습 점검표", "ratings": ["잘함", "보통", "미흡"], "items": ["빅데이터의 개념과 5V 특징을 설명할 수 있다.", "데이터 처리의 4단계(이해·수집·탐색·전처리)를 설명하고, 공공/민간 데이터를 구분해 수집할 수 있다.", "Python과 pandas·matplotlib·sklearn을 사용해 데이터를 분석·시각화하고, 선형회귀로 예측할 수 있다.", "분석 결과를 해석하고, 인구 변화가 자연·도시에 미치는 영향을 설명하며 정책을 제안할 수 있다."]}]}, {"id": "p9", "cat": "정리", "icon": "❓", "title": "활동퀴즈 1. 개념 이해", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 빅데이터와 데이터 처리<\/h3><\/div>"}, {"t": "quiz", "num": "01", "q": "기존 방식으로 처리하기 어려울 만큼 규모가 크고, 매우 빠르게 생성되며, 형식이 다양한 데이터를 가리키는 말은?", "opts": ["스몰데이터", "메타데이터", "빅데이터", "오픈데이터"], "ans": 2, "ok": "정답입니다! 빅데이터는 Volume·Velocity·Variety의 3V를 핵심으로 합니다.", "no": "힌트: '큰 규모'를 강조하는 용어입니다."}, {"t": "quiz", "num": "02", "q": "빅데이터의 특징을 나타내는 5V에 해당하지 <strong>않는<\/strong> 것은?", "opts": ["Volume (규모)", "Velocity (속도)", "Variety (다양성)", "Vision (시각)"], "ans": 3, "ok": "정답입니다! 5V는 Volume, Velocity, Variety, Veracity(정확성), Value(가치)입니다.", "no": "힌트: '5V'는 V로 시작하는 5가지 단어로, 'V'인지 의미가 맞는지 함께 확인해야 합니다."}, {"t": "quiz", "num": "03", "q": "국가·지자체·공공기관이 무료로 공개하는 데이터를 다운로드받을 수 있는 대표적인 사이트는?", "opts": ["공공데이터포털(data.go.kr)", "Kaggle", "DACON", "GitHub"], "ans": 0, "ok": "정답입니다! 공공데이터포털은 행정안전부가 운영하는 한국의 대표 공공데이터 사이트입니다.", "no": "힌트: 도메인 주소에 'data.go.kr'이 들어가는 사이트입니다."}]}, {"id": "p10", "cat": "정리", "icon": "❓", "title": "활동퀴즈 2. 적용·분석", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 분석 과정과 선형회귀<\/h3><\/div>"}, {"t": "quiz", "num": "04", "q": "데이터 처리의 4단계 순서로 바르게 나열한 것은?<br>ㄱ. 데이터 탐색 &nbsp;&nbsp; ㄴ. 문제 상황 이해 &nbsp;&nbsp; ㄷ. 데이터 전처리 &nbsp;&nbsp; ㄹ. 데이터 수집", "opts": ["ㄱ → ㄴ → ㄷ → ㄹ", "ㄴ → ㄹ → ㄱ → ㄷ", "ㄹ → ㄴ → ㄱ → ㄷ", "ㄴ → ㄱ → ㄹ → ㄷ"], "ans": 1, "ok": "정답입니다! 문제 이해(ㄴ) → 수집(ㄹ) → 탐색(ㄱ) → 전처리(ㄷ) 순서입니다.", "no": "힌트: 가장 먼저 '무엇을 알고 싶은가'를 정의해야 합니다."}, {"t": "quiz", "num": "05", "q": "Python에서 한국어가 포함된 CSV 파일이 깨질 때 가장 먼저 시도해 볼 인코딩은?", "opts": ["ASCII", "Base64", "cp949", "binary"], "ans": 2, "ok": "정답입니다! 한국에서 만들어진 CSV는 대부분 cp949(EUC-KR 계열) 인코딩을 사용합니다.", "no": "힌트: 한국어 Windows 환경에서 기본으로 쓰이는 인코딩입니다."}, {"t": "quiz", "num": "06", "q": "선형회귀 모델의 결정계수(R²) 값이 1에 가까울수록 의미하는 것으로 가장 적절한 것은?", "opts": ["데이터가 매우 많다는 의미이다.", "예측이 항상 정답임을 보장한다.", "직선이 데이터의 흐름을 잘 설명한다.", "이상치가 많다는 의미이다."], "ans": 2, "ok": "정답입니다! R²는 모델이 데이터의 변동을 얼마나 잘 설명하는지 나타내는 지표입니다.", "no": "힌트: '설명력'을 나타내는 지표라는 점을 떠올려 봅시다."}]}, {"id": "p11", "cat": "정리", "icon": "📚", "title": "읽기 자료", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>★ 디트로이트의 재야생화 — 인구 감소가 만든 자연<\/h3>\n          <p>미국 미시간주의 디트로이트는 1950년대 인구 <strong>180만 명<\/strong>에 달했던 미국 4대 도시였습니다. 자동차 산업의 중심지로 번영했지만, 산업 쇠퇴와 함께 인구가 빠르게 줄어 현재는 그 절반 이하 수준까지 떨어졌습니다. 그런데 이 인구 감소가 뜻밖에 도시에 새로운 가능성을 가져왔습니다.<\/p>\n        <\/div>"}, {"t": "tabs", "tabs": [{"label": "❶ 빈 도시의 자연", "content": "<p><strong>버려진 공간, 돌아온 자연<\/strong><\/p><p>인구가 줄면서 도시 곳곳에 빈집·빈 공장·빈 땅이 늘었고, 사람의 손길이 사라진 그 공간에 자연이 다시 돌아오기 시작했습니다. 풀이 자라고 나무가 뿌리내리며, 야생동물이 도심에 등장했습니다.<\/p>"}, {"label": "❷ 재야생화 프로젝트", "content": "<p><strong>약 6,200에이커의 보호구역<\/strong><\/p><p>디트로이트시는 이러한 변화를 받아들여 빈 공간을 자연 보호구역으로 지정하는 '재야생화(rewilding) 프로젝트'를 추진했습니다. 약 6,200에이커(약 2,510만 ㎡)에 달하는 면적이 야생동물 서식지로 보호되고 있으며, 시민들도 이 공간을 산책하고 자연을 즐길 수 있습니다.<\/p>"}, {"label": "❸ 새로운 도시 모델", "content": "<p><strong>축소를 성장 기회로 바꾸는 발상<\/strong><\/p><p>디트로이트의 사례는 인구 감소가 반드시 도시의 쇠락만을 의미하지 않음을 보여줍니다. 오히려 자연과 인간이 공존하는 새로운 도시 모델을 실험할 기회가 될 수 있습니다. 우리나라의 인구가 줄어드는 지방 도시들에게도 시사하는 바가 큽니다.<\/p>"}]}, {"t": "html", "v": "<div class=\"blk\"><h4>✓ 읽고 생각해 보기<\/h4><\/div>"}, {"t": "input", "label": "❶ 공주시도 디트로이트처럼 '재야생화'를 시도할 만한 지역이 있을까?", "ph": "예: 폐교, 빈 농지, 폐공장 부지 등을 생태공원으로 만들 수 있다.", "rows": 2}, {"t": "input", "label": "❷ 인구 감소를 '위기'가 아닌 '기회'로 바꾸는 아이디어는?", "ph": "예: 청년 농업·청년 창업 거점 마을, 디지털 노마드 유치, 생태 관광 등", "rows": 3}, {"t": "link", "url": "https://kosis.kr/", "icon": "📊", "title": "KOSIS — 인구 통계 살펴보기", "desc": "통계청 국가통계포털. 공주시뿐만 아니라 전국 시군구의 인구 변화를 비교해볼 수 있어요"}]}, {"id": "p12", "cat": "정리", "icon": "🧭", "title": "진로 연계", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 스마트 도시 전문가 — 데이터로 미래 도시를 설계하다<\/h3>\n          <p>인구·교통·환경 데이터를 분석해 도시의 미래를 설계하는 '스마트 도시 전문가'는 21세기 대표적인 융합 직업입니다. 도시계획·공학·정보기술·사회학이 만나는 분야로, 데이터 사이언스 역량이 점점 중요해지고 있습니다.<\/p>\n        <\/div>"}, {"t": "cards", "items": [{"front": "도시계획가", "back": "인구·교통·환경 데이터를 분석해 도시의 토지 이용·교통 체계·녹지 배치 등을 설계하는 전문가"}, {"front": "빅데이터 분석가", "back": "공공·민간의 대규모 데이터를 분석해 의사결정을 지원. 통계·프로그래밍 능력 필수"}, {"front": "GIS 전문가", "back": "지리정보시스템(GIS)을 활용해 공간 데이터를 분석·시각화. 도시·환경·재난 분야에 활용"}, {"front": "인구·정책 연구원", "back": "인구 동향·사회 변화를 분석해 복지·교육·노동 정책을 연구. 한국보건사회연구원 등에서 활동"}]}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 관련 학과·기관<\/h3>\n          <ul>\n            <li><strong>학과<\/strong>: 도시계획학과, 도시공학과, 통계학과, 빅데이터학과, 컴퓨터공학과, 지리학과, 행정학과<\/li>\n            <li><strong>기관<\/strong>: 통계청, 국토연구원, 한국교통연구원, 한국보건사회연구원, 지자체 도시계획과<\/li>\n            <li><strong>자격<\/strong>: 도시계획기사, ADsP(데이터분석 준전문가), GIS전문가<\/li>\n          <\/ul>\n        <\/div>"}, {"t": "link", "url": "https://www.dacon.io/", "icon": "🏆", "title": "DACON — 데이터 경진대회 플랫폼", "desc": "인구·환경·금융 등 다양한 주제의 데이터 분석 대회 참여 가능. 실력을 쌓고 포트폴리오를 만들 수 있어요"}, {"t": "link", "url": "https://www.career.go.kr/", "icon": "🧭", "title": "커리어넷 — 직업·전공 탐색", "desc": "도시계획·데이터 분석 관련 직업과 학과 정보를 더 자세히 살펴볼 수 있습니다"}]}]};
+</script>
+<script>
+/* =====================================================================
+   공주시 AIDT 공통 엔진 v1
+   - 학습 기록 자동 저장(브라우저 localStorage)
+   - 학습자 정보, 활동 기반 진행률, 학습 시간
+   - 2회 도전형 퀴즈 + 오답 시 관련 개념 페이지 안내
+   - 나의 학습 리포트(성취 수준·맞춤 학습 경로·메타인지 비교)
+   - 학습 기록 내려받기(JSON) → 교사용 대시보드에서 분석
+   ===================================================================== */
+(function () {
+  'use strict';
+  var LID = META.id, KEY = 'aidt:v1:' + LID, PKEY = 'aidt:v1:profile';
+  var CFG = window.AIDT_CONFIG || {}, SUBMIT_URL = String(CFG.submitUrl || '').trim();
+  var VIDS = META.videos || [];
+
+  /* ---------- 저장소 ---------- */
+  var mem = {};
+  function sget(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return mem[k] || d; } }
+  function sset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } }
+  function fresh() { return { v: 1, inputs: {}, quiz: {}, assess: {}, steps: {}, videos: {}, visited: [], time: {}, last: 'p1', started: Date.now(), updated: Date.now() }; }
+  var S = sget(KEY, null) || fresh();
+  var P = sget(PKEY, null);
+  S.videos = S.videos || {};
+  var saveTimer = null;
+  function save(immediate) {
+    S.updated = Date.now();
+    S.summary = summary();
+    if (immediate) { sset(KEY, S); pill(); return; }
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () { sset(KEY, S); pill(); }, 300);
+  }
+
+  /* ---------- 유틸 ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function txt(h) { return String(h || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function $(s) { return document.querySelector(s); }
+  function fmtTime(sec) { sec = Math.round(sec || 0); var m = Math.floor(sec / 60); return m >= 60 ? Math.floor(m / 60) + '시간 ' + (m % 60) + '분' : m + '분 ' + (sec % 60) + '초'; }
+  var CIRC = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
+
+  /* ---------- 리포트 페이지 추가 ---------- */
+  if (VIDS.length) D.pages.splice(1, 0, { id: 'video', cat: '도입', icon: '🎬', title: '영상으로 미리 보기', blocks: [{ t: 'videos' }] });
+  D.pages.push({ id: 'report', cat: '마무리', icon: '📊', title: '나의 학습 리포트', blocks: [{ t: 'report' }] });
+  var PAGES = D.pages;
+  function pageById(id) { for (var i = 0; i < PAGES.length; i++) if (PAGES[i].id === id) return PAGES[i]; return null; }
+
+  /* ---------- 추적 항목(진행률 산정 대상) ---------- */
+  var ITEMS = [];          // {key,type,pid,label,...}
+  var QUIZ = [];           // 퀴즈 메타
+  PAGES.forEach(function (p) {
+    p.blocks.forEach(function (b, bi) {
+      var k = p.id + '.' + bi;
+      if (b.t === 'videos') VIDS.forEach(function (v, i) { ITEMS.push({ key: 'vid.' + v, type: 'video', pid: p.id, label: '영상 ' + (i + 1), vid: v }); });
+      if (b.t === 'input') ITEMS.push({ key: k, type: 'input', pid: p.id, label: txt(b.label) });
+      if (b.t === 'prediction') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'input', pid: p.id, label: txt(x.label) }); });
+      if (b.t === 'assessment') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'assess', pid: p.id, label: txt(x), ratings: b.ratings }); });
+      if (b.t === 'quiz') { var q = { key: k, type: 'quiz', pid: p.id, b: b, num: b.num, q: txt(b.q) }; ITEMS.push(q); QUIZ.push(q); }
+    });
+  });
+  function itemDone(it) {
+    if (it.type === 'input') return !!(S.inputs[it.key] && S.inputs[it.key].trim());
+    if (it.type === 'assess') return S.assess[it.key] != null;
+    if (it.type === 'quiz') return !!(S.quiz[it.key] && S.quiz[it.key].done);
+    if (it.type === 'video') return !!S.videos[it.vid];
+    return false;
+  }
+  function pageState(pid) {
+    var its = ITEMS.filter(function (x) { return x.pid === pid; });
+    if (pid === 'report') return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    if (!its.length) return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    var d = its.filter(itemDone).length;
+    return d === its.length ? 'done' : (d > 0 || S.visited.indexOf(pid) >= 0 ? 'part' : '');
+  }
+
+  /* ---------- 퀴즈 → 관련 개념 페이지 연결(어휘 중첩 기반) ---------- */
+  function words(s) { return (s.match(/[가-힣A-Za-z0-9]{2,}/g) || []); }
+  var conceptPages = PAGES.filter(function (p) { return p.cat === '알아봐요'; });
+  if (!conceptPages.length) conceptPages = PAGES.filter(function (p) { return p.cat === '활동해요'; });
+  var pageWords = {};
+  conceptPages.forEach(function (p) {
+    var t = p.title + ' ' + p.blocks.map(function (b) { return txt(b.v || b.body || b.title || '') + ' ' + (b.items ? txt(JSON.stringify(b.items)) : '') + ' ' + (b.tabs ? txt(JSON.stringify(b.tabs)) : ''); }).join(' ');
+    var set = {}; words(t).forEach(function (w) { set[w] = 1; set[w.slice(0, 2)] = 1; });
+    pageWords[p.id] = set;
+  });
+  var DF = {}, NP = conceptPages.length;
+  conceptPages.forEach(function (p) { for (var w in pageWords[p.id]) DF[w] = (DF[w] || 0) + 1; });
+  function idf(w) { return Math.log(1 + NP / (DF[w] || NP)); }
+  QUIZ.forEach(function (q) {
+    var b = q.b, src = b.q + ' ' + b.opts[b.ans] + ' ' + txt(b.ok), best = null, bs = -1;
+    var ws = {}; words(src).forEach(function (w) { ws[w] = 1; });
+    conceptPages.forEach(function (p) {
+      var s = 0, n = 0; for (var w in ws) { if (pageWords[p.id][w]) s += idf(w); else if (pageWords[p.id][w.slice(0, 2)]) s += idf(w.slice(0, 2)) * 0.3; }
+      for (var k in pageWords[p.id]) n++;
+      s = s / Math.pow(n + 20, 0.25);
+      if (s > bs) { bs = s; best = p; }
+    });
+    q.concept = best ? best.id : null;
+  });
+
+  /* ---------- 오답 힌트: 정답을 그대로 노출하면 일반 힌트로 대체 ---------- */
+  function safeHint(b) {
+    var h = txt(b.no), a = String(b.opts[b.ans]).trim();
+    var leak = a && h.indexOf(a) >= 0 && (a.length >= 3 || new RegExp('(=|은|는|이|가)\\s*' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(입니다|이다|이에요|$|\\.)').test(h));
+    if (!h || leak) return '풀이 과정을 다시 확인해 보세요. 관련 개념을 복습한 뒤 한 번 더 도전해 보세요.';
+    return h.replace(/^(힌트\s*[:：]\s*)/, '').replace(/^다시\s*(생각|계산)해\s*봅시다[.!]?\s*/, '');
+  }
+  function stripOk(s) { return txt(s).replace(/^(정답입니다[.!]?|정답[!.]|맞아요[.!]?|맞습니다[.!]?)\s*/, ''); }
+
+  /* ---------- 블록 렌더러 ---------- */
+  function rBlock(b, pid, bi) {
+    var k = pid + '.' + bi;
+    switch (b.t) {
+      case 'html': return b.v;
+      case 'objectives': return '<div class="blk blk-card"><h3>🎯 학습목표</h3><ul class="obj-list">' + b.items.map(function (x, i) { return '<li><span class="obj-num">' + (i + 1) + '</span><span>' + x + '</span></li>'; }).join('') + '</ul></div>';
+      case 'callout': return '<div class="callout ' + (b.variant || '') + '"><div class="c-title">' + b.title + '</div><div class="c-body">' + b.body + '</div></div>';
+      case 'input': {
+        var v = esc(S.inputs[k] || ''), lab = b.label;
+        return '<div class="blk input-group' + (v ? ' filled' : '') + '"><label for="i_' + k + '">' + lab + '</label>' +
+          (b.rows > 1 ? '<textarea id="i_' + k + '" data-k="' + k + '" rows="' + b.rows + '" placeholder="' + esc(b.ph || '') + '">' + v + '</textarea>'
+            : '<input type="text" id="i_' + k + '" data-k="' + k + '" placeholder="' + esc(b.ph || '') + '" value="' + v + '">') + '</div>';
+      }
+      case 'steps': return '<div class="steps"><div class="s-hd">📋 ' + b.title + '</div>' + b.items.map(function (s, i) {
+        var sk = k + '.' + i; return '<div class="step' + (S.steps[sk] ? ' done' : '') + '" data-sk="' + sk + '"><div class="s-n">' + (i + 1) + '</div><div class="s-c"><h4>' + s.title + '</h4><p>' + s.desc + '</p></div></div>';
+      }).join('') + '</div>';
+      case 'link': return '<a class="link-card" href="' + b.url + '" target="_blank" rel="noopener"><div class="l-icon">' + (b.icon || '🔗') + '</div><div class="l-info"><h4>' + b.title + '</h4><p>' + b.desc + '</p></div></a>';
+      case 'tabs': {
+        var tid = 't_' + k.replace('.', '_');
+        return '<div class="blk"><div class="tabs-nav">' + b.tabs.map(function (t, i) { return '<button class="tab-btn ' + (i === 0 ? 'active' : '') + '" data-tid="' + tid + '" data-ti="' + i + '">' + t.label + '</button>'; }).join('') + '</div>' +
+          b.tabs.map(function (t, i) { return '<div class="tab-panel ' + (i === 0 ? 'active' : '') + '" id="' + tid + '-' + i + '">' + t.content + '</div>'; }).join('') + '</div>';
+      }
+      case 'cards': return '<div class="cards-grid">' + b.items.map(function (c) { return '<div class="flip-card"><div class="flip-inner"><div class="flip-front">' + c.front.replace(/\n/g, '<br>') + '</div><div class="flip-back">' + c.back + '</div></div></div>'; }).join('') + '</div>';
+      case 'prediction': return '<div class="blk blk-card"><h4>🔮 예측 조건/행동 입력</h4>' + b.items.map(function (x, i) {
+        var pk = k + '.' + i; return '<div class="pred-row"><label for="i_' + pk + '">' + x.label + '</label><input type="text" id="i_' + pk + '" data-k="' + pk + '" placeholder="' + esc(x.ph || '') + '" value="' + esc(S.inputs[pk] || '') + '" style="width:100%"></div>';
+      }).join('') + '<div class="auto-note">✔ 입력하면 자동으로 저장됩니다.</div></div>';
+      case 'quiz': return quizHTML(k);
+      case 'assessment': return '<div class="blk blk-card"><h3>✅ ' + b.title + '</h3>' + b.items.map(function (x, i) {
+        var ak = k + '.' + i; return '<div class="assess-item"><span>' + x + '</span><div class="rating-g">' + b.ratings.map(function (r, ri) { return '<button class="r-btn' + (S.assess[ak] === ri ? ' sel' : '') + '" data-ak="' + ak + '" data-ri="' + ri + '">' + r + '</button>'; }).join('') + '</div></div>';
+      }).join('') + '</div>';
+      case 'code': {
+        var cid = 'c_' + k.replace('.', '_');
+        return '<div class="blk code-blk"><div class="code-hd"><span>' + esc(b.lang) + '</span><button class="code-copy" data-cid="' + cid + '">코드 복사</button></div><div class="code-bd"><pre id="' + cid + '">' + esc(b.code) + '</pre></div></div>';
+      }
+      case 'wokwi': return '<div class="blk"><a class="link-card wokwi" href="https://wokwi.com/projects/new/arduino-uno" target="_blank" rel="noopener"><div class="l-icon">🔧</div><div class="l-info"><h4>Wokwi 시뮬레이터로 직접 실습해 보기 ↗</h4><p>새 탭으로 시뮬레이터를 열어두고, 아래 코드를 하나씩 복사해 붙여넣은 뒤 ▶ 버튼으로 실행해 보세요.</p></div></a></div>';
+      case 'videos': return '<div class="blk"><p>이번 차시의 핵심 내용을 짧은 영상 ' + VIDS.length + '편으로 먼저 만나 봅시다. 영상을 보고 다음 쪽 <b>생각해요</b>로 넘어가세요.</p></div><div class="vid-grid">' +
+        VIDS.map(function (v, i) { return '<div class="vid-card' + (S.videos[v] ? ' seen' : '') + '"><div class="vid-thumb" data-vid="' + v + '" style="background-image:url(https://i.ytimg.com/vi/' + v + '/hqdefault.jpg)"><span class="vid-play">▶</span></div><div class="vid-cap"><b>🎬 영상 ' + (i + 1) + '</b><span class="vid-seen">✓ 시청함</span><a href="https://youtu.be/' + v + '" target="_blank" rel="noopener" data-vlink="' + v + '">유튜브에서 보기 ↗</a></div></div>'; }).join('') +
+        '</div>' + (location.protocol === 'file:' ? '<p class="muted small">※ 파일로 열면 유튜브 새 탭에서 재생됩니다.</p>' : '');
+      case 'report': return reportHTML();
+      default: return '';
+    }
+  }
+
+  /* ---------- 퀴즈 ---------- */
+  function qmeta(key) { for (var i = 0; i < QUIZ.length; i++) if (QUIZ[i].key === key) return QUIZ[i]; }
+  function quizHTML(key) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] }, tries = st.tries || [];
+    var done = !!st.done, correct = done && tries[tries.length - 1] === b.ans;
+    var badge = '';
+    if (done && correct) badge = '<span class="q-badge ok">' + (tries.length === 1 ? '✓ 정답' : '✓ 2회 만에 정답') + '</span>';
+    else if (done) badge = '<span class="q-badge no">✗ 오답</span>';
+    else if (tries.length) badge = '<span class="q-badge try">기회 1번 남음</span>';
+    var h = '<div class="blk blk-card quiz-card" id="q_' + key.replace('.', '_') + '"><div class="quiz-q"><span class="qn">' + b.num + '.</span><span style="flex:1">' + b.q + '</span>' + badge + '</div>';
+    h += b.opts.map(function (o, i) {
+      var cls = '', mark = CIRC[i] || (i + 1);
+      if (tries.indexOf(i) >= 0 && i !== b.ans) { cls = ' wrong'; mark = '✗'; }
+      if (done && i === b.ans) { cls = ' correct'; mark = '✓'; }
+      var dis = done || tries.indexOf(i) >= 0 ? ' disabled' : '';
+      return '<div class="quiz-opt' + cls + dis + '" data-qk="' + key + '" data-qi="' + i + '"><span class="oc">' + mark + '</span><span>' + o + '</span></div>';
+    }).join('');
+    var concept = m.concept && pageById(m.concept);
+    var clink = concept ? '<a class="concept-link" data-go="' + concept.id + '">📖 관련 개념 다시 보기: ' + concept.title + '</a>' : '';
+    if (done && correct) h += '<div class="quiz-fb ok show">' + b.ok + '</div>';
+    else if (done) h += '<div class="quiz-fb no show"><b>정답은 ' + (CIRC[b.ans] || '') + ' ' + b.opts[b.ans] + '입니다.</b><br>💡 ' + stripOk(b.ok) + '</div>' + clink;
+    else if (tries.length) h += '<div class="quiz-fb no show"><b>다시 생각해 봅시다.</b> ' + safeHint(b) + '</div>' + clink;
+    return h + '</div>';
+  }
+  function answerQuiz(key, i) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] };
+    if (st.done || st.tries.indexOf(i) >= 0) return;
+    st.tries.push(i);
+    if (i === b.ans) { st.done = true; st.first = st.tries.length === 1; }
+    else if (st.tries.length >= 2) { st.done = true; st.first = false; }
+    st.at = Date.now();
+    S.quiz[key] = st; save(true);
+    var el = document.getElementById('q_' + key.replace('.', '_'));
+    if (el) el.outerHTML = quizHTML(key);
+    refreshProgress();
+  }
+
+  /* ---------- 영상 ---------- */
+  function markVideo(v) { if (!S.videos[v]) { S.videos[v] = Date.now(); save(true); refreshProgress(); } var c = document.querySelector('[data-vid="' + v + '"]'); if (c) c.closest('.vid-card').classList.add('seen'); }
+  function playVideo(el, v) {
+    markVideo(v); el.closest('.vid-card').classList.add('seen');
+    if (location.protocol === 'file:') { window.open('https://youtu.be/' + v, '_blank', 'noopener'); return; }
+    el.removeAttribute('data-vid'); el.style.backgroundImage = 'none';
+    el.innerHTML = '<iframe src="https://www.youtube.com/embed/' + v + '?autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="영상"></iframe>';
+  }
+
+  /* ---------- 요약 통계 ---------- */
+  function summary() {
+    var tot = ITEMS.length, done = ITEMS.filter(itemDone).length;
+    var qn = QUIZ.length, first = 0, second = 0, wrong = 0, answered = 0;
+    QUIZ.forEach(function (q) { var s = S.quiz[q.key]; if (!s || !s.done) return; answered++; var c = s.tries[s.tries.length - 1] === q.b.ans; if (c && s.first) first++; else if (c) second++; else wrong++; });
+    var score = answered ? Math.round((first + second * 0.5) / answered * 100) : null;
+    var prov = score == null ? '-' : score >= 80 ? '상' : score >= 50 ? '중' : '하';
+    var level = answered === 0 ? '-' : answered < qn ? '미완료' : prov;
+    var as = ITEMS.filter(function (x) { return x.type === 'assess' && S.assess[x.key] != null; });
+    var self = as.length ? Math.round(as.reduce(function (a, x) { return a + (2 - Math.min(2, S.assess[x.key])); }, 0) / (as.length * 2) * 100) : null;
+    var t = 0; for (var p in S.time) t += S.time[p];
+    var vw = VIDS.filter(function (v) { return S.videos[v]; }).length;
+    return { progress: tot ? Math.round(done / tot * 100) : 0, done: done, total: tot, quizTotal: qn, answered: answered, prov: prov, first: first, second: second, wrong: wrong, score: score, level: level, self: self, timeSec: Math.round(t), videosWatched: vw, videosTotal: VIDS.length };
+  }
+
+  /* ---------- 리포트 ---------- */
+  function reportHTML() {
+    var s = summary(), who = P ? esc(profileText(P)) : '<a class="concept-link" data-act="profile">학습자 정보 입력하기</a>';
+    var h = '<div class="blk blk-card rep-head"><div class="rep-who">👤 ' + who + '</div><div class="rep-meta">' + esc(META.subject) + ' ' + esc(META.code) + ' · ' + esc(D.title) + '</div>' +
+      '<div class="rep-stats">' +
+      stat('진행률', s.progress + '%', s.done + ' / ' + s.total + ' 활동') +
+      stat('퀴즈 성취도', s.answered ? s.score + '점' : '–', s.answered ? '1차 정답 ' + s.first + ' · 2차 정답 ' + s.second + ' · 오답 ' + s.wrong : '아직 풀지 않음') +
+      stat('성취 수준', s.level === '미완료' ? s.prov + '<small>(잠정)</small>' : s.level, s.level === '미완료' ? '퀴즈 ' + (s.quizTotal - s.answered) + '문항 남음' : s.level === '상' ? '목표 도달' : s.level === '중' ? '부분 도달' : s.level === '하' ? '보충 필요' : '') +
+      stat('학습 시간', fmtTime(s.timeSec), VIDS.length ? '영상 시청 ' + s.videosWatched + ' / ' + s.videosTotal + '편' : '이 차시에서 보낸 시간') + '</div></div>';
+
+    // 맞춤 학습 경로
+    var wrongQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return st && st.done && !st.first; });
+    var notQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return !st || !st.done; });
+    h += '<div class="blk blk-card"><h3>🧭 나에게 맞는 다음 학습</h3>';
+    if (!s.answered) {
+      h += '<p>먼저 활동퀴즈를 풀어 보세요. 결과에 따라 맞춤 학습 경로를 안내합니다.</p>' + (notQ.length ? '<p><a class="concept-link" data-go="' + notQ[0].pid + '">❓ 활동퀴즈 풀러 가기</a></p>' : '');
+    } else {
+      var L = s.prov;
+      var msg = (s.level === '미완료' ? '(지금까지 푼 ' + s.answered + '문항 기준) ' : '') + (L === '상' ? '🎉 학습목표에 도달했어요! 심화 자료로 생각을 넓혀 보세요.'
+        : L === '중' ? '👍 핵심은 이해했어요. 헷갈린 개념만 다시 정리하면 완벽해요.'
+          : '💪 기본 개념을 다시 다져 볼까요? 아래 순서대로 복습한 뒤 틀린 문제에 다시 도전해 보세요.');
+      h += '<p class="rep-msg lv-' + L + '">' + msg + '</p>';
+      var rec = [];
+      if (L === '하') conceptPages.forEach(function (p) { rec.push([p.id, '📖 기본 개념: ' + p.title]); });
+      var seen = {};
+      wrongQ.forEach(function (q) { if (q.concept && !seen[q.concept]) { seen[q.concept] = 1; var p = pageById(q.concept); if (L !== '하') rec.push([p.id, '📖 ' + q.num + '번 관련 개념: ' + p.title]); } });
+      if (L === '상') PAGES.forEach(function (p) { if (/읽기|진로/.test(p.title) && p.cat === '정리') rec.push([p.id, (/진로/.test(p.title) ? '🧭 ' : '📚 ') + '심화: ' + p.title]); });
+      if (notQ.length) rec.push([notQ[0].pid, '❓ 아직 풀지 않은 퀴즈 ' + notQ.length + '문항']);
+      if (rec.length) h += '<ol class="rec-list">' + rec.map(function (r) { return '<li><a class="concept-link" data-go="' + r[0] + '">' + r[1] + '</a></li>'; }).join('') + '</ol>';
+      if (wrongQ.length) h += '<button class="btn btn-o" data-act="retry">🔁 틀린 문제 다시 풀기 (' + wrongQ.length + '문항)</button>';
+    }
+    h += '</div>';
+
+    // 문항별 결과
+    if (QUIZ.length) {
+      h += '<div class="blk blk-card"><h3>📝 문항별 결과</h3><table class="rep-tbl"><tr><th>번호</th><th>문항</th><th>결과</th><th>다시 보기</th></tr>';
+      QUIZ.forEach(function (q) {
+        var st = S.quiz[q.key], r = '<span class="muted">미응시</span>';
+        if (st && st.done) { var c = st.tries[st.tries.length - 1] === q.b.ans; r = c ? (st.first ? '<span class="r-ok">✓ 정답</span>' : '<span class="r-mid">△ 2차 정답</span>') : '<span class="r-no">✗ 오답</span>'; }
+        var cp = q.concept && pageById(q.concept);
+        h += '<tr><td>' + q.num + '</td><td><a class="concept-link" data-go="' + q.pid + '">' + esc(q.q.length > 48 ? q.q.slice(0, 48) + '…' : q.q) + '</a></td><td>' + r + '</td><td>' + (cp ? '<a class="concept-link" data-go="' + cp.id + '">' + esc(cp.title) + '</a>' : '') + '</td></tr>';
+      });
+      h += '</table></div>';
+    }
+
+    // 메타인지: 자기진단 vs 퀴즈
+    if (s.self != null) {
+      var cmp = '';
+      if (s.answered) {
+        var d = s.self - s.score;
+        cmp = d > 25 ? '스스로 평가한 이해도(' + s.self + '%)가 퀴즈 결과(' + s.score + '점)보다 높아요. 틀린 문항의 개념을 다시 확인해 보세요.'
+          : d < -25 ? '퀴즈 결과(' + s.score + '점)가 스스로 평가한 이해도(' + s.self + '%)보다 높아요. 생각보다 잘 이해하고 있으니 자신감을 가져도 좋아요!'
+            : '스스로 평가한 이해도(' + s.self + '%)와 퀴즈 결과(' + s.score + '점)가 비슷해요. 자신의 학습 상태를 잘 파악하고 있어요.';
+      } else cmp = '스스로 평가한 이해도는 ' + s.self + '%입니다. 퀴즈를 풀면 실제 결과와 비교해 드려요.';
+      h += '<div class="blk blk-card"><h3>🪞 스스로 진단 vs 실제 결과</h3><p>' + cmp + '</p></div>';
+    }
+
+    // 미작성 활동
+    var empty = ITEMS.filter(function (x) { return (x.type === 'input' || x.type === 'assess') && !itemDone(x); });
+    h += '<div class="blk blk-card"><h3>✍️ 아직 작성하지 않은 활동 ' + (empty.length ? '(' + empty.length + '개)' : '') + '</h3>';
+    if (!empty.length) h += '<p>모든 활동을 작성했어요. 훌륭해요!</p>';
+    else {
+      var byP = {}; empty.forEach(function (x) { (byP[x.pid] = byP[x.pid] || []).push(x); });
+      h += '<ul class="rec-list">' + Object.keys(byP).map(function (pid) { var p = pageById(pid); return '<li><a class="concept-link" data-go="' + pid + '">' + p.icon + ' ' + esc(p.title) + '</a> <span class="muted">· ' + byP[pid].length + '개</span></li>'; }).join('') + '</ul>';
+    }
+    h += '</div>';
+
+    // 내 답변 모아보기
+    var filled = ITEMS.filter(function (x) { return x.type === 'input' && itemDone(x); });
+    if (filled.length) {
+      h += '<details class="blk blk-card"><summary><b>🗂️ 내가 작성한 답변 모아보기 (' + filled.length + '개)</b></summary><div class="ans-list">' +
+        filled.map(function (x) { return '<div class="ans-item"><div class="ans-q">' + esc(x.label) + '</div><div class="ans-a">' + esc(S.inputs[x.key]).replace(/\n/g, '<br>') + '</div></div>'; }).join('') + '</div></details>';
+    }
+
+    var sub = S.submittedAt ? new Date(S.submittedAt) : null;
+    if (SUBMIT_URL) h += '<div class="blk blk-card submit-box' + (sub ? ' done' : '') + '"><div><b>' + (sub ? '✅ 선생님께 제출했어요' : '📤 학습 결과를 선생님께 제출하세요') + '</b><div class="muted small">' + (sub ? '제출 시각 ' + sub.toLocaleString('ko-KR') + ' · 내용을 고쳤다면 다시 제출하세요(최신 기록으로 바뀝니다).' : '버튼을 누르면 선생님의 구글 시트로 바로 전송됩니다.') + '</div></div><button class="btn btn-p" data-act="submit">' + (sub ? '🔁 다시 제출하기' : '📤 선생님께 제출하기') + '</button></div>';
+    h += '<div class="blk rep-actions"><button class="btn ' + (SUBMIT_URL ? 'btn-o' : 'btn-p') + '" data-act="export">📥 학습 기록 내려받기</button><button class="btn btn-o" data-act="print">🖨️ 인쇄 / PDF 저장</button><button class="btn btn-o" data-act="reset">↺ 처음부터 다시 하기</button></div>' +
+      '<p class="muted small">' + (SUBMIT_URL ? '제출 버튼이 작동하지 않으면 학습 기록을 내려받아 선생님께 파일로 제출하세요.' : '내려받은 학습 기록(.json) 파일을 구글 클래스룸 등으로 선생님께 제출하세요.') + ' 선생님은 교사용 대시보드에서 학급 결과를 한눈에 볼 수 있어요. 학습 기록은 이 기기의 브라우저에만 저장됩니다.</p>';
+    return h;
+    function stat(l, v, sub) { return '<div class="rep-stat"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + sub + '</div></div>'; }
+  }
+
+  /* ---------- 내보내기 ---------- */
+  function profileText(p) { return [p.school, p.grade ? p.grade + '학년' : '', p.cls ? p.cls + '반' : '', p.num ? p.num + '번' : '', p.name].filter(Boolean).join(' '); }
+  function buildRecord() {
+    var s = summary();
+    return {
+      format: 'gongju-aidt-v1', exportedAt: new Date().toISOString(),
+      lesson: { id: LID, subject: META.subject, code: META.code, title: D.title },
+      student: P, summary: s,
+      quiz: QUIZ.map(function (q) { var st = S.quiz[q.key] || { tries: [] }; var c = st.done && st.tries[st.tries.length - 1] === q.b.ans; return { num: q.num, question: q.q, answer: txt(q.b.opts[q.b.ans]), tries: st.tries.map(function (i) { return txt(q.b.opts[i]); }), done: !!st.done, correct: !!c, firstCorrect: !!(c && st.first), concept: q.concept ? pageById(q.concept).title : '' }; }),
+      responses: ITEMS.filter(function (x) { return x.type === 'input'; }).map(function (x) { return { key: x.key, page: pageById(x.pid).title, prompt: x.label, answer: S.inputs[x.key] || '' }; }),
+      selfAssessment: ITEMS.filter(function (x) { return x.type === 'assess'; }).map(function (x) { return { item: x.label, rating: S.assess[x.key] != null ? x.ratings[S.assess[x.key]] : '', score: S.assess[x.key] != null ? 2 - Math.min(2, S.assess[x.key]) : null }; }),
+      timePerPage: PAGES.map(function (p) { return { page: p.title, sec: Math.round(S.time[p.id] || 0) }; }),
+      videos: VIDS.map(function (v, i) { return { n: i + 1, id: v, watched: !!S.videos[v] }; })
+    };
+  }
+  function exportRecord() {
+    if (!P || !P.name) { openProfile(function () { exportRecord(); }); return; }
+    var rec = buildRecord();
+    var name = [P.grade && P.cls && P.num ? P.grade + String(P.cls).padStart(2, '0') + String(P.num).padStart(2, '0') : '', P.name, META.subject + META.code].filter(Boolean).join('_') + '.json';
+    var blob = new Blob([JSON.stringify(rec, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast('📥 ' + name + ' 파일을 내려받았어요.');
+  }
+  var submitting = false;
+  function submitRecord(btn) {
+    if (!P || !P.name) { openProfile(function () { submitRecord(); }); return; }
+    if (submitting) return; submitting = true;
+    if (btn) { btn.disabled = true; btn.textContent = '제출 중…'; }
+    tick(); save(true);
+    var body = JSON.stringify(buildRecord());
+    function done(ok, msg) {
+      submitting = false;
+      if (ok) { S.submittedAt = Date.now(); save(true); toast('✅ 선생님께 제출했어요!'); }
+      else toast('⚠️ 제출하지 못했어요. ' + (msg || '인터넷 연결을 확인하거나 학습 기록을 내려받아 제출하세요.'));
+      if (cur === 'report') render('report');
+    }
+    fetch(SUBMIT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { done(!!j.ok, j.error === 'closed' ? '선생님이 제출을 마감했어요.' : ''); })
+      .catch(function () {
+        fetch(SUBMIT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body })
+          .then(function () { done(true); }, function () { done(false); });
+      });
+  }
+
+  /* ---------- 학습자 정보 ---------- */
+  function openProfile(after) {
+    var p = P || {};
+    var ov = document.createElement('div'); ov.className = 'modal-ov';
+    ov.innerHTML = '<div class="modal"><h3>👋 학습자 정보</h3><p class="muted small">학습 기록에 함께 저장되어 선생님께 제출할 때 사용됩니다. 이 기기의 모든 차시에 공통으로 적용돼요.</p>' +
+      '<div class="pf-grid"><label>학교<input id="pf_school" value="' + esc(p.school || '') + '" placeholder="예: 공주고등학교"></label>' +
+      '<label>학년<input id="pf_grade" inputmode="numeric" value="' + esc(p.grade || '') + '" placeholder="1"></label>' +
+      '<label>반<input id="pf_cls" inputmode="numeric" value="' + esc(p.cls || '') + '" placeholder="3"></label>' +
+      '<label>번호<input id="pf_num" inputmode="numeric" value="' + esc(p.num || '') + '" placeholder="12"></label>' +
+      '<label class="full">이름<input id="pf_name" value="' + esc(p.name || '') + '" placeholder="홍길동"></label></div>' +
+      '<div class="modal-btns"><button class="btn btn-o" id="pf_skip">나중에</button><button class="btn btn-p" id="pf_ok">저장하고 시작</button></div></div>';
+    document.body.appendChild(ov);
+    setTimeout(function () { var n = document.getElementById('pf_name'); if (n) n.focus(); }, 50);
+    ov.querySelector('#pf_skip').onclick = function () { ov.remove(); };
+    ov.querySelector('#pf_ok').onclick = function () {
+      var g = function (id) { return document.getElementById(id).value.trim(); };
+      if (!g('pf_name')) { document.getElementById('pf_name').focus(); toast('이름을 입력해 주세요.'); return; }
+      P = { school: g('pf_school'), grade: g('pf_grade'), cls: g('pf_cls'), num: g('pf_num'), name: g('pf_name') };
+      sset(PKEY, P); ov.remove(); renderWho(); if (cur === 'report') render('report'); if (after) after();
+    };
+  }
+  function renderWho() { var w = document.getElementById('who'); if (w) w.innerHTML = P ? '👤 ' + esc(profileText(P)) + ' <a data-act="profile">수정</a>' : '👤 <a data-act="profile">학습자 정보 입력</a>'; }
+
+  /* ---------- 화면 ---------- */
+  var cur = null, pageStart = Date.now();
+  function tick() {
+    if (cur && !document.hidden) { var dt = (Date.now() - pageStart) / 1000; if (dt > 0 && dt < 600) S.time[cur] = (S.time[cur] || 0) + dt; }
+    pageStart = Date.now();
+  }
+  setInterval(function () { tick(); save(); }, 15000);
+  document.addEventListener('visibilitychange', function () { tick(); save(true); });
+  window.addEventListener('beforeunload', function () { tick(); save(true); });
+
+  function buildNav() {
+    var h = '', c = null;
+    PAGES.forEach(function (p) {
+      if (p.cat !== c) { h += '<div class="nav-cat">' + p.cat + '</div>'; c = p.cat; }
+      var st = pageState(p.id);
+      h += '<div class="nav-item' + (p.id === cur ? ' active' : '') + (p.id === 'report' ? ' nav-report' : '') + '" data-pid="' + p.id + '"><span class="icon">' + p.icon + '</span><span style="flex:1">' + p.title + '</span><span class="nst ' + st + '">' + (st === 'done' ? '✓' : st === 'part' ? '•' : '') + '</span></div>';
+    });
+    document.getElementById('nav').innerHTML = h;
+  }
+  function refreshProgress() {
+    var s = summary();
+    document.getElementById('pTxt').textContent = s.progress + '%';
+    document.getElementById('pBar').style.width = s.progress + '%';
+    var sub = document.getElementById('pSub'); if (sub) sub.textContent = s.done + ' / ' + s.total + ' 활동 완료' + (s.answered ? ' · 퀴즈 ' + s.score + '점' : '');
+    document.querySelectorAll('.nav-item').forEach(function (el) { var st = pageState(el.dataset.pid), n = el.querySelector('.nst'); n.className = 'nst ' + st; n.textContent = st === 'done' ? '✓' : st === 'part' ? '•' : ''; });
+  }
+  function pill() { var e = document.getElementById('savePill'); if (!e) return; var d = new Date(S.updated); e.textContent = '✔ 자동 저장됨 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); e.classList.add('flash'); setTimeout(function () { e.classList.remove('flash'); }, 600); }
+  function toast(m) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.classList.add('show'); }, 10); setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 2600); }
+
+  function render(pid) {
+    var pg = pageById(pid) || PAGES[0]; pid = pg.id;
+    tick(); cur = pid; S.last = pid;
+    if (S.visited.indexOf(pid) < 0) S.visited.push(pid);
+    var idx = PAGES.indexOf(pg), m = document.getElementById('main');
+    var prev = idx > 0 ? '<button class="btn btn-o" data-go="' + PAGES[idx - 1].id + '">← 이전</button>' : '<div></div>';
+    var next = idx < PAGES.length - 1 ? '<button class="btn btn-p" data-go="' + PAGES[idx + 1].id + '">' + (PAGES[idx + 1].id === 'report' ? '📊 학습 리포트 보기 →' : '다음 →') + '</button>' : '<a class="btn btn-p" href="../index.html">전체 차시로 →</a>';
+    m.innerHTML = '<div class="pg-hd"><div class="pg-top"><div class="pg-crumb">' + D.title + (pg.cat ? ' &gt; ' + pg.cat : '') + '</div><span class="save-pill" id="savePill">✔ 자동 저장</span></div><h2 class="pg-title">' + pg.icon + ' ' + pg.title + '</h2></div>' +
+      pg.blocks.map(function (b, bi) { return rBlock(b, pid, bi); }).join('') + '<div class="pg-nav">' + prev + next + '</div>';
+    if (location.hash !== '#' + pid) history.replaceState(null, '', '#' + pid);
+    document.querySelectorAll('.nav-item').forEach(function (el) { el.classList.toggle('active', el.dataset.pid === pid); });
+    save(true); refreshProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector('.sidebar').classList.remove('open');
+  }
+  window.go = render;
+
+  /* ---------- 이벤트(위임) ---------- */
+  document.addEventListener('input', function (e) {
+    var k = e.target.dataset && e.target.dataset.k; if (!k) return;
+    S.inputs[k] = e.target.value; save();
+    var g = e.target.closest('.input-group'); if (g) g.classList.toggle('filled', !!e.target.value.trim());
+    clearTimeout(refreshProgress._t); refreshProgress._t = setTimeout(refreshProgress, 400);
+  });
+  document.addEventListener('click', function (e) {
+    var vl = e.target.closest('[data-vlink]'); if (vl) { markVideo(vl.dataset.vlink); return; }
+    var t = e.target.closest('[data-go],[data-pid],[data-qk],[data-ak],[data-sk],[data-tid],[data-cid],[data-act],[data-vid],.flip-card');
+    if (!t) return;
+    if (t.dataset.vid) { playVideo(t, t.dataset.vid); return; }
+    if (t.dataset.go) { e.preventDefault(); render(t.dataset.go); return; }
+    if (t.dataset.pid) { render(t.dataset.pid); return; }
+    if (t.dataset.qk) { if (!t.classList.contains('disabled')) answerQuiz(t.dataset.qk, +t.dataset.qi); return; }
+    if (t.dataset.ak) { S.assess[t.dataset.ak] = +t.dataset.ri; t.parentElement.querySelectorAll('.r-btn').forEach(function (b) { b.classList.toggle('sel', b === t); }); save(); refreshProgress(); return; }
+    if (t.dataset.sk) { S.steps[t.dataset.sk] = !S.steps[t.dataset.sk]; t.classList.toggle('done', !!S.steps[t.dataset.sk]); save(); return; }
+    if (t.dataset.tid) { var p = t.parentElement; p.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === t); }); document.querySelectorAll('[id^="' + t.dataset.tid + '-"]').forEach(function (x) { x.classList.toggle('active', x.id === t.dataset.tid + '-' + t.dataset.ti); }); return; }
+    if (t.dataset.cid) { var c = document.getElementById(t.dataset.cid).textContent; (navigator.clipboard ? navigator.clipboard.writeText(c) : Promise.reject()).then(function () { t.textContent = '복사 완료 ✔'; }, function () { t.textContent = '직접 선택해 복사하세요'; }); setTimeout(function () { t.textContent = '코드 복사'; }, 2000); return; }
+    if (t.classList.contains('flip-card')) { t.classList.toggle('flipped'); return; }
+    var a = t.dataset.act;
+    if (a === 'profile') openProfile();
+    if (a === 'export') exportRecord();
+    if (a === 'submit') submitRecord(t);
+    if (a === 'print') window.print();
+    if (a === 'retry') { var first = null; QUIZ.forEach(function (q) { var st = S.quiz[q.key]; if (st && st.done && !st.first) { st.retried = (st.retried || 0) + 1; delete S.quiz[q.key]; if (!first) first = q.pid; } }); save(true); toast('틀린 문제를 다시 풀 수 있어요.'); if (first) render(first); }
+    if (a === 'reset') { if (confirm('이 차시의 모든 학습 기록(답변·퀴즈·진단)을 지울까요? 되돌릴 수 없습니다.')) { S = fresh(); save(true); buildNav(); render('p1'); } }
+  });
+
+  /* ---------- 시작 ---------- */
+  var side = document.querySelector('.sidebar-hd');
+  side.insertAdjacentHTML('afterbegin', '<a class="home-link" href="../index.html">← 전체 차시</a>');
+  document.querySelector('.sidebar-ft').insertAdjacentHTML('beforeend', '<div class="prog-sub" id="pSub"></div><div class="who" id="who"></div>');
+  buildNav(); renderWho();
+  var start = (location.hash || '').slice(1);
+  render(pageById(start) ? start : (S.last && pageById(S.last) ? S.last : 'p1'));
+  if (!P) setTimeout(function () { openProfile(); }, 400);
+})();
+
+</script>
+</body>
+</html>

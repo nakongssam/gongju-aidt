@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIDT — 미세먼지 데이터 탐구</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
+:root {
+  --bg:#F5F4F0;--surface:#fff;--surface-alt:#FAFAF7;--border:#E5E3DD;--border-lt:#EEECE6;
+  --txt:#1A1A1A;--txt2:#555;--txt3:#999;
+  --accent:#10b981;--accent-lt:#d1fae5;--accent-dk:#059669;
+  --blue:#3b82f6;--blue-lt:#eff6ff;--green:#10b981;--green-lt:#d1fae5;
+  --purple:#8b5cf6;--purple-lt:#ede9fe;--red:#ef4444;--red-lt:#fee2e2;
+  --radius:12px;--radius-sm:8px;--transition:.25s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--txt);line-height:1.75;font-size:15px;-webkit-font-smoothing:antialiased}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:290px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+.sidebar-hd{padding:20px 16px 14px;border-bottom:1px solid var(--border-lt)}
+.sidebar-hd h1{font-size:11px;font-weight:800;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+.sidebar-hd .topic{font-size:16px;font-weight:700;line-height:1.4}
+.sidebar-nav{flex:1;padding:8px 6px;overflow-y:auto}
+
+/* Navigation Categories & Items */
+.nav-cat{font-size:11px;font-weight:800;color:var(--txt3);margin:20px 12px 6px;padding-bottom:4px;border-bottom:1px solid var(--border-lt);letter-spacing:1px;}
+.nav-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;font-size:13px;color:var(--txt2);cursor:pointer;border-radius:var(--radius-sm);transition:var(--transition);line-height:1.4;word-break:keep-all;}
+.nav-item:hover{background:var(--surface-alt);color:var(--txt)}
+.nav-item.active{background:var(--accent-lt);color:var(--accent-dk);font-weight:700}
+.nav-item .icon{font-size:15px;flex-shrink:0;width:20px;text-align:center;margin-top:1px;}
+
+.sidebar-ft{padding:10px 16px;border-top:1px solid var(--border-lt)}
+.prog-label{font-size:11px;font-weight:600;color:var(--txt3);margin-bottom:4px}
+.prog-bg{height:4px;background:var(--border-lt);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+.content{flex:1;margin-left:290px;padding:28px 44px 80px;max-width:860px}
+.mobile-tog{display:none;position:fixed;top:10px;left:10px;z-index:200;width:38px;height:38px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);transition:transform .3s}
+  .sidebar.open{transform:translateX(0)}
+  .content{margin-left:0;padding:18px 14px 60px}
+  .mobile-tog{display:flex!important}
+}
+
+/* Page header */
+.pg-hd{margin-bottom:28px}
+.pg-crumb{font-size:12px;color:var(--txt3);margin-bottom:6px}
+.pg-title{font-size:26px;font-weight:800;line-height:1.3}
+
+/* Blocks */
+.blk{margin-bottom:22px}
+.blk-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px}
+.blk h3{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.blk h4{font-size:14px;font-weight:700;margin:16px 0 8px}
+.blk p,.blk li{font-size:14px;line-height:1.8;color:var(--txt)}
+.blk p+p{margin-top:10px}
+.blk ul{padding-left:20px;margin:8px 0}
+.blk ul li{margin-bottom:4px}
+
+/* Callout */
+.callout{border-left:4px solid var(--accent);background:var(--accent-lt);padding:14px 18px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:18px}
+.callout.blue{background:var(--blue-lt);border-color:var(--blue)}
+.callout.green{background:var(--green-lt);border-color:var(--green)}
+.callout.purple{background:var(--purple-lt);border-color:var(--purple)}
+.callout .c-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.callout .c-body{font-size:14px;line-height:1.7;color:var(--txt2)}
+
+/* Objectives */
+.obj-list{list-style:none;padding:0}
+.obj-list li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;font-size:14px}
+.obj-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+
+/* Input */
+.input-group{margin-bottom:14px}
+.input-group label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+.input-group textarea,.input-group input[type=text]{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;font-family:inherit;line-height:1.6;resize:vertical;background:var(--bg);transition:var(--transition)}
+.input-group textarea:focus,.input-group input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Steps */
+.steps{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
+.steps .s-hd{padding:14px 18px;border-bottom:1px solid var(--border-lt);font-size:14px;font-weight:700}
+.step{padding:14px 18px;border-bottom:1px solid var(--border-lt);display:flex;gap:12px;cursor:pointer;transition:var(--transition)}
+.step:last-child{border-bottom:none}
+.step:hover{background:var(--surface-alt)}
+.step .s-n{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--txt3);flex-shrink:0;transition:var(--transition)}
+.step.done .s-n{background:var(--green);border-color:var(--green);color:#fff}
+.step .s-c h4{font-size:14px;font-weight:600;margin:0 0 3px}
+.step .s-c p{font-size:13px;color:var(--txt2);margin:0}
+
+/* Tabs */
+.tabs-nav{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:0}
+.tab-btn{padding:9px 18px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt3);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:var(--transition)}
+.tab-btn:hover{color:var(--txt)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-panel{display:none;padding:16px 0;font-size:14px;line-height:1.8}
+.tab-panel.active{display:block}
+
+/* Flip Cards */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:18px}
+.flip-card{height:130px;perspective:1000px;cursor:pointer}
+.flip-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.flip-card.flipped .flip-inner{transform:rotateY(180deg)}
+.flip-front,.flip-back{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;text-align:center;padding:14px;font-size:14px}
+.flip-front{background:var(--accent-lt);border:1px solid var(--accent);font-weight:700;color:var(--accent-dk)}
+.flip-back{background:var(--surface);border:1px solid var(--border);transform:rotateY(180deg);color:var(--txt2);font-size:13px;line-height:1.5}
+
+/* Quiz */
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;gap:8px}
+.quiz-q .qn{color:var(--accent);font-weight:800}
+.quiz-opt{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px;cursor:pointer;transition:var(--transition);font-size:14px}
+.quiz-opt:hover{border-color:var(--accent);background:var(--accent-lt)}
+.quiz-opt.correct{border-color:var(--green);background:var(--green-lt)}
+.quiz-opt.wrong{border-color:var(--red);background:var(--red-lt)}
+.quiz-opt .oc{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:var(--transition)}
+.quiz-opt.correct .oc{border-color:var(--green);background:var(--green);color:#fff}
+.quiz-opt.wrong .oc{border-color:var(--red);background:var(--red);color:#fff}
+.quiz-fb{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-top:10px;display:none}
+.quiz-fb.show{display:block}
+.quiz-fb.ok{background:var(--green-lt);color:var(--green)}
+.quiz-fb.no{background:var(--red-lt);color:var(--red)}
+
+/* Prediction */
+.pred-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pred-row label{font-size:13px;font-weight:600;min-width:100px}
+.pred-row input{width:130px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;text-align:center}
+.pred-row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Assessment - Segmented Control */
+.assess-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--border-lt);flex-wrap:wrap}
+.assess-item:last-child{border-bottom:none}
+.assess-item>span{flex:1;min-width:200px;font-size:14px;line-height:1.6;color:var(--txt)}
+.rating-g{display:inline-flex;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;flex-shrink:0}
+.r-btn{padding:6px 16px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt2);background:transparent;border:none;border-radius:6px;cursor:pointer;transition:var(--transition);min-width:54px}
+.r-btn:hover{color:var(--txt)}
+.r-btn.sel{background:var(--surface);color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.r-btn:nth-child(1).sel{color:var(--green);background:var(--green-lt)}
+.r-btn:nth-child(2).sel{color:#d97706;background:#fef3c7}
+.r-btn:nth-child(3).sel{color:var(--red);background:var(--red-lt)}
+
+/* Link Card */
+.link-card{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--txt);transition:var(--transition);margin-bottom:12px}
+.link-card:hover{border-color:var(--accent);background:var(--surface-alt);transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,0.04)}
+.link-card .l-icon{font-size:24px;flex-shrink:0;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--accent-lt);border-radius:var(--radius-sm)}
+.link-card .l-info{flex:1;min-width:0}
+.link-card .l-info h4{font-size:14px;font-weight:700;margin:0 0 2px;color:var(--txt)}
+.link-card .l-info p{font-size:13px;line-height:1.5;color:var(--txt2);margin:0}
+.link-card::after{content:"↗";font-size:14px;color:var(--txt3);flex-shrink:0;margin-left:4px}
+
+/* Btn */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:var(--transition)}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:var(--accent-dk);transform:translateY(-1px)}
+.btn-o{background:transparent;border:1px solid var(--border);color:var(--txt2)}
+.btn-o:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Page nav */
+.pg-nav{display:flex;justify-content:space-between;margin-top:44px;padding-top:20px;border-top:1px solid var(--border-lt)}
+.pg-nav .btn{min-width:130px;justify-content:center}
+
+/* Animation */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.content>*{animation:fadeIn .35s ease both}
+
+
+/* ===== AIDT 추가 스타일 ===== */
+.home-link{display:inline-block;font-size:12px;color:var(--txt3);text-decoration:none;margin-bottom:8px}
+.home-link:hover{color:var(--accent)}
+.nav-item{display:flex;align-items:center}
+.nst{width:18px;text-align:center;font-size:12px;font-weight:800;color:var(--txt3)}
+.nst.done{color:var(--accent)}
+.nst.part{color:#f59e0b;font-size:16px}
+.nav-report{margin-top:2px}
+.prog-sub{font-size:11px;color:var(--txt3);margin-top:6px}
+.who{font-size:12px;color:var(--txt2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border-lt)}
+.who a{color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:4px}
+.pg-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.save-pill{font-size:11px;color:var(--accent-dk);background:var(--accent-lt);padding:3px 10px;border-radius:12px;white-space:nowrap;transition:transform .2s}
+.save-pill.flash{transform:scale(1.06)}
+.input-group.filled label::after{content:" ✓";color:var(--accent);font-weight:800}
+.auto-note{font-size:12px;color:var(--txt3);margin-top:8px}
+/* 퀴즈 */
+.quiz-q{align-items:flex-start}
+.q-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;height:fit-content}
+.q-badge.ok{background:var(--green-lt);color:var(--accent-dk)}
+.q-badge.no{background:var(--red-lt);color:var(--red)}
+.q-badge.try{background:#fef3c7;color:#b45309}
+.quiz-opt .oc{font-size:11px;font-weight:700;color:var(--txt3)}
+.quiz-opt:not(.disabled):hover{border-color:var(--accent);background:var(--surface-alt)}
+.quiz-opt.disabled{cursor:default}
+.quiz-opt.wrong .oc,.quiz-opt.correct .oc{color:#fff}
+.concept-link{display:inline-block;color:var(--blue);cursor:pointer;font-size:13px;font-weight:600;text-decoration:none;margin-top:8px}
+.concept-link:hover{text-decoration:underline}
+/* 코드 */
+.code-blk{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:18px}
+.code-hd{background:#2d2d2d;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;color:#e0e0e0;font-size:13px;font-weight:600;font-family:monospace}
+.code-copy{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#e0e0e0;border-radius:4px;padding:5px 10px;font-size:12px;cursor:pointer}
+.code-bd{background:#1e1e1e;padding:16px;overflow-x:auto}
+.code-bd pre{margin:0;color:#d4d4d4;font-family:Consolas,Monaco,monospace;font-size:14px;line-height:1.6}
+.link-card.wokwi{background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-color:#ffb74d}
+/* 리포트 */
+.rep-who{font-size:16px;font-weight:700}
+.rep-meta{font-size:13px;color:var(--txt3);margin-bottom:14px}
+.rep-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.rep-stat{background:var(--surface-alt);border:1px solid var(--border-lt);border-radius:var(--radius-sm);padding:12px}
+.rep-stat .l{font-size:12px;color:var(--txt3)}
+.rep-stat .v{font-size:24px;font-weight:800;color:var(--accent-dk);line-height:1.3}
+.rep-stat .s{font-size:11px;color:var(--txt2)}
+.rep-msg{font-weight:600;padding:10px 14px;border-radius:var(--radius-sm);background:var(--blue-lt)}
+.rep-msg.lv-상{background:var(--green-lt)}
+.rep-msg.lv-하{background:#fef3c7}
+.rec-list{margin:10px 0 12px 20px}
+.rec-list li{margin:4px 0}
+.rec-list .concept-link{margin-top:0}
+.rep-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.rep-tbl th,.rep-tbl td{border-bottom:1px solid var(--border-lt);padding:7px 6px;text-align:left;vertical-align:top}
+.rep-tbl th{color:var(--txt3);font-weight:600;font-size:12px}
+.rep-tbl .concept-link{margin:0;font-weight:500}
+.r-ok{color:var(--accent-dk);font-weight:700}.r-mid{color:#d97706;font-weight:700}.r-no{color:var(--red);font-weight:700}
+.muted{color:var(--txt3)}.small{font-size:12px}
+details.blk-card summary{cursor:pointer}
+.ans-item{padding:10px 0;border-bottom:1px solid var(--border-lt)}
+.ans-q{font-size:12px;color:var(--txt3);margin-bottom:3px}
+.ans-a{font-size:14px}
+.rep-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* 모달·토스트 */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:var(--radius);padding:22px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:4px}
+.pf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}
+.pf-grid label{font-size:12px;color:var(--txt2);display:flex;flex-direction:column;gap:4px}
+.pf-grid label:first-child,.pf-grid label.full{grid-column:1/-1}
+.pf-grid input{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px}
+.modal-btns{display:flex;justify-content:flex-end;gap:8px}
+.modal-btns .btn{min-width:0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:#1f2937;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.3s;z-index:600}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:900px){
+  .content{padding-top:62px!important}
+  .rep-stats{grid-template-columns:1fr 1fr}
+}
+@media print{
+  .sidebar,.mobile-tog,.pg-nav,.rep-actions,.save-pill{display:none!important}
+  .content{margin-left:0!important;max-width:none!important;padding:0!important}
+  body{background:#fff}
+  details{display:block}details>*{display:block}
+}
+.rep-stat .v small{font-size:12px;font-weight:600;color:var(--txt3);margin-left:3px}
+/* 영상 */
+.vid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.vid-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.vid-card.seen{border-color:var(--accent)}
+.vid-thumb{position:relative;aspect-ratio:16/9;background:#111 center/cover no-repeat;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.vid-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid-play{width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;padding-left:4px;transition:.2s}
+.vid-thumb:hover .vid-play{background:#e11d48;transform:scale(1.08)}
+.vid-cap{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px}
+.vid-cap a{margin-left:auto;font-size:12px;color:var(--txt3);text-decoration:none}
+.vid-cap a:hover{color:var(--accent)}
+.vid-seen{display:none;font-size:11px;font-weight:700;color:var(--accent-dk);background:var(--accent-lt);padding:1px 8px;border-radius:10px}
+.vid-card.seen .vid-seen{display:inline}
+.submit-box{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border:2px solid var(--accent)!important;background:var(--accent-lt)!important}
+.submit-box.done{border-color:var(--border)!important;background:var(--surface)!important}
+.submit-box .btn:disabled{opacity:.6;cursor:wait}
+@media(max-width:900px){.vid-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="mobile-tog" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</div>
+<div class="app">
+<aside class="sidebar">
+  <div class="sidebar-hd">
+    <h1>AIDT 일반고 수학 · Ⅱ-12</h1>
+    <div class="topic">공주시 미세먼지 데이터 탐구<br>기온·습도·바람과 미세먼지의 상관성 분석</div>
+  </div>
+  <nav class="sidebar-nav" id="nav"></nav>
+  <div class="sidebar-ft">
+    <div class="prog-label">진행률 <span id="pTxt">0%</span></div>
+    <div class="prog-bg"><div class="prog-fill" id="pBar" style="width:0%"></div></div>
+  </div>
+</aside>
+<main class="content" id="main"></main>
+</div>
+<script src="../aidt-config.js"></script>
+<script>
+const META = {"id": "math-II-12", "subject": "수학", "code": "Ⅱ-12", "module": "교과 융합 모듈", "n": 12, "roman": "II", "videos": ["x7MR1st68_k", "UNAUuH8Px38", "verprZu1fYY"]};
+const D = {"title": "미세먼지 데이터 탐구", "pages": [{"id": "p1", "cat": "도입", "icon": "🎯", "title": "학습목표", "blocks": [{"t": "html", "v": "\n          <div class=\"blk\" style=\"text-align:center;padding:20px 0\">\n            <div style=\"font-size:12px;color:var(--accent);font-weight:700;letter-spacing:2px;margin-bottom:6px\">수학 × 정보 융합 · 데이터 분석<\/div>\n            <h2 style=\"font-size:28px;font-weight:900;margin-bottom:8px\">공주시 미세먼지 데이터 탐구<br>기온·습도·바람과 미세먼지의 상관성 분석<\/h2>\n            <div style=\"display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px\">\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--accent-lt);color:var(--accent-dk)\">수학(통계·함수)<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--blue-lt);color:var(--blue)\">정보(빅데이터)<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--purple-lt);color:var(--purple)\">파이썬·엑셀 실습<\/span>\n            <\/div>\n          <\/div>\n        "}, {"t": "objectives", "items": ["공주시 미세먼지와 기온·습도·풍속 데이터를 수집하고, 데이터 분석을 통해 상관관계를 설명할 수 있다.", "기온·습도·바람에 따른 미세먼지 변화를 함수로 표현하고 그래프의 변화율을 이용해 증가·감소 구간과 극대·극소를 판정하고, 오염이 심해지는 조건을 수학적으로 설명할 수 있다.", "기온·습도·풍속을 입력해 위험등급을 출력하는 프로그램을 설계·구현하여 실측값과 비교할 수 있다."]}]}, {"id": "p2", "cat": "도입", "icon": "💭", "title": "생각해요", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 미세먼지, 왜 어떤 날은 심하고 어떤 날은 괜찮을까?<\/h3>\n          <p>공주시에 살다 보면 어떤 날은 하늘이 뿌옇고 숨이 답답하며, 어떤 날은 맑고 상쾌한 공기를 마실 수 있다. 특히 아침에 창문을 열었을 때 뿌연 공기가 보이거나, 아이들과 산책을 나갔다가 목이 칼칼해져서 돌아오는 경험들이 떠오른다. 그런데 왜 어떤 날은 미세먼지가 심하고 어떤 날은 괜찮을까? 단순히 중국발 황사나 공장 매연 때문이라고만 생각하기엔 날씨와 관련이 있어 보인다. 비가 온 다음 날은 공기가 깨끗하고, 바람이 없는 날은 더 답답한 것 같다. 하지만 이런 느낌만으로는 정확한 관계를 알기 어렵다.<\/p>\n          <p>미세먼지 농도가 왜 변하는지 정확히 알려면 감으로만 판단할 게 아니라 수치로 보여주는 자료가 필요하다. 기온이 높을 때와 낮을 때, 습도가 높을 때와 낮을 때, 바람이 강할 때와 약할 때 미세먼지 농도가 어떻게 달라지는지 객관적으로 비교해봐야 한다. 또한 계절별로도 차이가 있을 수 있고, 하루 중 시간대별로도 패턴이 다를 수 있다. 이런 복잡한 관계를 파악하려면 추측이나 경험에만 의존하지 말고 실제 측정된 데이터를 분석해서 과학적 근거를 찾아야 한다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><p style=\"font-weight:700;color:var(--accent)\">미세먼지와 기상 요인의 관계를 제대로 분석하려면 어떤 정보가 필요할까? 다양한 기상 조건에서 미세먼지가 특히 높거나 낮은 경우를 찾아내서 공주시민들에게 실용적인 정보를 제공할 수 있는 방법이 무엇인지 그 요인을 생각해 보자!<\/p><\/div>"}, {"t": "input", "label": "▶ 나의 생각", "ph": "예: 바람이 없고 습도가 높은 날에 미세먼지가 심한 것 같다. 실제 데이터로 확인해보고 싶다.", "rows": 3}]}, {"id": "p3", "cat": "알아봐요", "icon": "📖", "title": "1. 어떤 데이터를 모을까", "blocks": [{"t": "callout", "variant": "blue", "title": "📊 활용 도구 안내", "body": "이번 탐구에서는 다양한 AI·디지털 도구를 활용합니다.<br>• <strong>ChatGPT<\/strong> — 분석 계획 수립, 데이터 전처리 점검, 코드 디버깅 보조<br>• <strong>빅카인즈(BigKinds)<\/strong> — 미세먼지 관련 뉴스 기사 검색·분석<br>• <strong>AirKorea / 기상자료개방포털(KMA)<\/strong> — 대기질·기상 공공데이터 수집<br>• <strong>엑셀·파이썬<\/strong> — 전처리·집계·모델 구현<br>• <strong>지오지브라·통그라미<\/strong> — 그래프·통계 시각화<br>• <strong>패들렛·미리캔버스<\/strong> — 협업·결과물 제작"}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 데이터 수집의 목적<\/h3>\n          <p>공주시의 미세먼지 농도가 기상 조건에 따라 어떻게 변화하는지 과학적으로 분석하기 위해서는 체계적이고 정확한 데이터 수집이 필요하다. 우리가 수집할 데이터는 크게 <strong>대기질 데이터<\/strong>와 <strong>기상 데이터<\/strong>로 구분되며, 이들 간의 관계를 파악하여 미세먼지 변화 패턴을 이해할 수 있다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>▶ 대기질 데이터 — 측정 항목<\/h4>\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin:10px 0\">\n            <thead><tr style=\"background:var(--accent-lt)\">\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">측정 항목<\/th>\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">단위<\/th>\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">설명<\/th>\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">측정 방법<\/th>\n            <\/tr><\/thead>\n            <tbody>\n              <tr><td style=\"padding:8px 12px;border:1px solid var(--border)\">PM2.5<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">µg/m³<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">입자 크기가 2.5µm 이하인 초미세먼지<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">베타선 흡수법, 광산란법<\/td><\/tr>\n              <tr><td style=\"padding:8px 12px;border:1px solid var(--border)\">PM10<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">µg/m³<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">입자 크기가 10µm 이하인 미세먼지<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">베타선 흡수법, 광산란법<\/td><\/tr>\n            <\/tbody>\n          <\/table>\n        <\/div>"}, {"t": "callout", "variant": "green", "title": "ℹ️ 단위 이해하기", "body": "µg/m³는 공기 1m³ 안에 포함된 미세먼지의 질량(마이크로그램)을 나타냅니다.<br>1 µg = 0.000001 g = 10⁻⁶ g"}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>▶ 대기질 기준<\/h4>\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin:10px 0\">\n            <thead><tr style=\"background:var(--accent-lt)\">\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">등급<\/th>\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">PM2.5 (µg/m³)<\/th>\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">PM10 (µg/m³)<\/th>\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">상태<\/th>\n            <\/tr><\/thead>\n            <tbody>\n              <tr><td style=\"padding:8px 12px;border:1px solid var(--border);color:var(--green);font-weight:600\">좋음<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">0~15<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">0~30<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">좋음<\/td><\/tr>\n              <tr><td style=\"padding:8px 12px;border:1px solid var(--border);color:#d97706;font-weight:600\">보통<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">16~35<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">31~80<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">보통<\/td><\/tr>\n              <tr><td style=\"padding:8px 12px;border:1px solid var(--border);color:var(--red);font-weight:600\">나쁨<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">36~75<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">81~150<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">나쁨<\/td><\/tr>\n              <tr><td style=\"padding:8px 12px;border:1px solid var(--border);color:var(--red);font-weight:700\">매우나쁨<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">76 이상<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">151 이상<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">매우나쁨<\/td><\/tr>\n            <\/tbody>\n          <\/table>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>▶ 기상 데이터<\/h4>\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin:10px 0\">\n            <thead><tr style=\"background:var(--blue-lt)\">\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">측정 항목<\/th>\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">단위<\/th>\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">설명<\/th>\n              <th style=\"padding:8px 12px;text-align:left;border:1px solid var(--border)\">미세먼지와의 관계<\/th>\n            <\/tr><\/thead>\n            <tbody>\n              <tr><td style=\"padding:8px 12px;border:1px solid var(--border)\">기온<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">°C (섭씨)<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">대기의 온도<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">화학반응 속도, 대기 안정도에 영향<\/td><\/tr>\n              <tr><td style=\"padding:8px 12px;border:1px solid var(--border)\">상대습도<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">% (퍼센트)<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">공기 중 수증기 포화도<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">입자 성장, 화학반응 촉진<\/td><\/tr>\n              <tr><td style=\"padding:8px 12px;border:1px solid var(--border)\">풍속<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">m/s (미터/초)<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">바람의 속도<\/td><td style=\"padding:8px 12px;border:1px solid var(--border)\">오염물질 확산, 희석 효과<\/td><\/tr>\n            <\/tbody>\n          <\/table>\n        <\/div>"}]}, {"id": "p4", "cat": "알아봐요", "icon": "📖", "title": "2. 자료 분포 분석 도구", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 자료 분포 분석의 중요성<\/h3>\n          <p>미세먼지 데이터를 올바르게 해석하기 위해서는 데이터가 어떻게 분포되어 있는지 정확히 파악해야 한다. 대표값은 데이터의 중심 경향을, 흩어진 정도는 데이터의 변동성을 나타낸다. 이를 통해 \"평균적으로 미세먼지 농도가 어느 정도인지\", \"농도 변화가 얼마나 심한지\" 등을 수치적으로 파악할 수 있다.<\/p>\n        <\/div>"}, {"t": "tabs", "tabs": [{"label": "도수분포표", "content": "<p><strong>도수분포표<\/strong>는 연속된 데이터를 구간(계급)으로 나누어 각 구간에 속하는 데이터의 개수(도수)를 정리한 표입니다.<\/p>\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin:10px 0\">\n            <thead><tr style=\"background:var(--accent-lt)\"><th style=\"padding:6px 10px;border:1px solid var(--border)\">PM2.5 농도 구간 (µg/m³)<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">도수 (시간)<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">상대도수<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">등급<\/th><\/tr><\/thead>\n            <tbody>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border)\">0 이상 ~ 15 미만<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">120<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">0.50<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">좋음<\/td><\/tr>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border)\">15 이상 ~ 35 미만<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">80<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">0.33<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">보통<\/td><\/tr>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border)\">35 이상 ~ 75 미만<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">35<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">0.15<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">나쁨<\/td><\/tr>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border)\">75 이상<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">5<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">0.02<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">매우나쁨<\/td><\/tr>\n              <tr style=\"font-weight:600\"><td style=\"padding:6px 10px;border:1px solid var(--border)\">합계<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">240<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">1.00<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">-<\/td><\/tr>\n            <\/tbody>\n          <\/table>"}, {"label": "히스토그램", "content": "<p><strong>히스토그램<\/strong>은 도수분포표를 막대그래프로 나타낸 것으로, 데이터의 분포 모양을 시각적으로 파악할 수 있습니다. 통그라미 도구를 활용하면 손쉽게 제작할 수 있습니다.<\/p>"}, {"label": "상자그림", "content": "<p><strong>상자그림(Box Plot)<\/strong>은 데이터의 중앙값, 사분위수, 이상치를 한눈에 보여주는 그래프입니다. 최솟값, Q1(25%), 중앙값(Q2), Q3(75%), 최댓값과 이상치를 시각적으로 확인할 수 있습니다.<\/p>"}]}]}, {"id": "p5", "cat": "알아봐요", "icon": "📖", "title": "3. 수학 개념과 변수 관계", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 미세먼지 데이터 분석에 어떤 수학 개념이 필요할까?<\/h3>\n          <h4>1. 확률밀도함수<\/h4>\n          <p>확률밀도함수는 연속확률변수가 가지는 값의 분포를 나타내는 함수이다. 연속확률변수 X가 특정한 값 a를 가질 확률 P(X=a)는 수학적으로 0이다. 따라서 연속확률변수에서는 '특정한 값'이 아닌 '특정한 구간'에 속할 확률을 구해야 하며, 이를 위해 정의된 함수가 바로 확률밀도함수 f(x)이다.<\/p>\n          <p>쉽게 비유하자면, 도수분포표의 히스토그램에서 계급의 크기를 아주 작게 줄여나갈 때, 히스토그램의 윗부분을 연결하여 얻어지는 부드러운 곡선이라고 생각하면 된다.<\/p>\n        <\/div>"}, {"t": "callout", "variant": "purple", "title": "📐 확률밀도함수의 성질", "body": "① 함숫값은 항상 0 이상이다: f(x) ≥ 0<br>② 전체 넓이는 1이다: ∫f(x)dx = 1<br>③ 넓이가 곧 확률이다: P(a ≤ X ≤ b) = ∫ₐᵇ f(x)dx"}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>2. 함수의 증가·감소<\/h4>\n          <p>함수 f(x)가 어떤 열린구간에서 미분가능할 때,<\/p>\n          <ul>\n            <li>그 구간의 모든 x에 대하여 f'(x) > 0이면, f(x)는 그 구간에서 <strong>증가<\/strong>한다.<\/li>\n            <li>그 구간의 모든 x에 대하여 f'(x) < 0이면, f(x)는 그 구간에서 <strong>감소<\/strong>한다.<\/li>\n          <\/ul>\n          <h4>3. 함수의 극대·극소<\/h4>\n          <p>함수 f(x)에서 x=a를 포함하는 어떤 열린구간에 속하는 모든 x에 대하여 f(x) ≤ f(a)이면 함수 f(x)는 x=a에서 <strong>극대<\/strong>가 된다. 반대로 f(x) ≥ f(a)이면 <strong>극소<\/strong>가 된다. 극댓값과 극솟값을 통들어 <strong>극값<\/strong>이라고 한다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 변수 사이의 관계: 산점도와 직선식<\/h3>\n          <p>미세먼지 농도는 기온, 습도, 풍속 등 다양한 기상 요소와 밀접한 관계가 있다. 이러한 변수 간의 관계를 정확히 파악하면 미세먼지 농도 변화를 예측하고 원인을 분석할 수 있다. <strong>산점도<\/strong>는 두 변수의 관계를 시각적으로 보여주고, <strong>직선식<\/strong>은 이 관계를 수학적으로 표현하는 핵심 도구이다.<\/p>\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin:10px 0\">\n            <thead><tr style=\"background:var(--accent-lt)\"><th style=\"padding:6px 10px;border:1px solid var(--border)\">산점도 유형<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">X축<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">Y축<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">분석 목적<\/th><\/tr><\/thead>\n            <tbody>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border);font-weight:600\">기온-PM<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">기온 (°C)<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">PM2.5 (µg/m³)<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">온도에 따른 미세먼지 농도 변화<\/td><\/tr>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border);font-weight:600\">습도-PM<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">상대습도 (%)<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">PM2.5 (µg/m³)<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">습도가 미세먼지에 미치는 영향<\/td><\/tr>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border);font-weight:600\">풍속-PM<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">풍속 (m/s)<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">PM2.5 (µg/m³)<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">바람이 미세먼지 확산에 미치는 효과<\/td><\/tr>\n            <\/tbody>\n          <\/table>\n        <\/div>"}, {"t": "callout", "variant": "blue", "title": "💡 상관관계 ≠ 인과관계", "body": "상관관계가 높다고 해서 반드시 '원인'과 '결과'인 것은 아닙니다. 예를 들어, 여름철 '아이스크림 판매량'과 '익사 사고 발생 건수'는 강한 양의 상관관계를 보이지만, 아이스크림이 익사 사고의 원인은 아닙니다. '더운 날씨'라는 숨겨진 요인이 두 변수 모두에게 영향을 미치기 때문입니다."}]}, {"id": "p6", "cat": "활동해요", "icon": "✏️", "title": "1. 가설 설정과 데이터 수집", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 데이터 수집과 가설 설정<\/h3>\n          <h4>활동 1: 탐구 질문과 가설 설정하기<\/h4>\n          <p>우리의 탐구 질문: <strong>\"공주시의 PM10/PM2.5 농도는 어떤 기상 조건에서 높아질까?\"<\/strong><\/p>\n          <p>모둠원들과 상의하여, 기온, 습도, 풍속이 미세먼지에 각각 어떤 영향을 미칠지 가설을 세워 보자.<\/p>\n        <\/div>"}, {"t": "prediction", "items": [{"label": "가설 1 (기온)", "ph": "예: 기온이 낮을수록 미세먼지 농도가 높아질 것이다."}, {"label": "가설 2 (습도)", "ph": "예: 습도가 높을수록 미세먼지 농도가 높아질 것이다."}, {"label": "가설 3 (풍속)", "ph": "예: 풍속이 약할수록 미세먼지 농도가 높아질 것이다."}]}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>활동 2: 뉴스 기사로 맥락 파악하기 (빅카인즈)<\/h4>\n          <p>'빅카인즈(BigKinds)'에서 우리 가설과 관련된 뉴스 기사를 검색하고, 주요 내용을 요약해 보자.<\/p>\n          <div style=\"background:var(--surface-alt);border:1px dashed var(--border);border-radius:var(--radius-sm);padding:12px 16px;margin:10px 0;font-size:13px\">\n            <strong>모둠별 검색 키워드 예시<\/strong><br>\n            1) 공주 AND 미세먼지 AND (황사 OR 경보)<br>\n            2) 충남 AND 미세먼지 AND (정체 OR 무풍)<br>\n            3) 세종 OR 대전 AND 미세먼지 AND 강수\n          <\/div>\n        <\/div>"}, {"t": "input", "label": "검색한 기사에서 발견한 핵심 내용을 요약해 보자.", "ph": "예: 2024년 3월, 충남 지역에 바람이 거의 없는 '대기 정체' 현상이 발생하자 PM2.5 농도가 '매우 나쁨' 수준까지 치솟았다.", "rows": 3}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>활동 3: 공공데이터 수집하기<\/h4>\n          <p>우리 가설을 검증하기 위해 두 개의 공공데이터 포털에서 데이터를 직접 수집한다.<\/p>\n        <\/div>"}, {"t": "steps", "title": "데이터 수집 절차", "items": [{"title": "데이터 1: 미세먼지 (AirKorea 통계정보)", "desc": "측정소: 공주시 (예: 신관동) / 항목: PM10, PM2.5 / 데이터 종류: 시간별 자료 (CSV 다운로드)"}, {"title": "데이터 2: 날씨 (기상자료개방포털 KMA)", "desc": "관측 지점: 공주 (ASOS) / 항목: 기온(℃), 습도(%), 풍속(m/s) / 데이터 종류: 시간별 자료 (CSV 다운로드)"}, {"title": "함수 관계 정의하기", "desc": "독립변수(원인): x₁=기온, x₂=습도, x₃=풍속 / 종속변수(결과): y=PM10 (또는 PM2.5)"}, {"title": "추세선 그려보기 (지오지브라)", "desc": "수집한 데이터 중 일부(예: 10개 시간)를 지오지브라에 입력하고 '추세선(적합선)' 기능을 이용해 경향을 살펴본다."}]}]}, {"id": "p7", "cat": "활동해요", "icon": "✏️", "title": "2. 데이터 전처리 및 탐색", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 데이터 전처리 및 탐색<\/h3>\n          <h4>활동 1: 데이터 전처리 로그 (기록)<\/h4>\n        <\/div>"}, {"t": "input", "label": "데이터 병합(Join): AirKorea와 KMA 데이터를 '측정 시간' 기준으로 병합", "ph": "예: YYYY-MM-DD HH 형식으로 시간 키를 통일한 후 병합", "rows": 2}, {"t": "input", "label": "단위 점검 (ChatGPT 활용)", "ph": "예: µg/m³, ℃, %, m/s 단위 확인 완료", "rows": 1}, {"t": "input", "label": "결측치(Missing) 처리", "ph": "예: 결측 행은 전후 평균으로 보간 / 이상치(음수값)는 제거", "rows": 2}, {"t": "html", "v": "<div class=\"blk\"><h4>활동 2: 기초 통계량 계산하기<\/h4><\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin:10px 0\">\n            <thead><tr style=\"background:var(--accent-lt)\">\n              <th style=\"padding:6px 10px;border:1px solid var(--border)\">변수 (단위)<\/th>\n              <th style=\"padding:6px 10px;border:1px solid var(--border)\">평균 (중심)<\/th>\n              <th style=\"padding:6px 10px;border:1px solid var(--border)\">최댓값<\/th>\n              <th style=\"padding:6px 10px;border:1px solid var(--border)\">최솟값<\/th>\n              <th style=\"padding:6px 10px;border:1px solid var(--border)\">중앙값 (Q2)<\/th>\n              <th style=\"padding:6px 10px;border:1px solid var(--border)\">IQR (Q3 - Q1)<\/th>\n            <\/tr><\/thead>\n            <tbody>\n              <tr><td style=\"padding:8px 10px;border:1px solid var(--border);font-weight:600\">PM10 (µg/m³)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><\/tr>\n              <tr><td style=\"padding:8px 10px;border:1px solid var(--border);font-weight:600\">기온 (°C)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><\/tr>\n              <tr><td style=\"padding:8px 10px;border:1px solid var(--border);font-weight:600\">습도 (%)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><\/tr>\n              <tr><td style=\"padding:8px 10px;border:1px solid var(--border);font-weight:600\">풍속 (m/s)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\"><\/td><\/tr>\n            <\/tbody>\n          <\/table>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>활동 3: 분포 시각화하기(통그라미)<\/h4>\n          <p>통그라미를 이용하여 히스토그램, 상자그림을 제작하고, 기준치 초과 비율(상대도수)을 계산해 보자.<\/p>\n        <\/div>"}, {"t": "input", "label": "히스토그램·상자그림에서 관찰한 내용을 적어 보자.", "ph": "예: PM10의 분포가 오른쪽으로 꼬리가 길었다 / 이상치가 120 µg/m³ 부근에서 관찰되었다", "rows": 3}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>활동 4: 시간선 그래프 분석<\/h4>\n          <p>그래프에서 PM10이 급격히 증가(↗)·감소(↘)한 구간을 찾아 표시하고 해석해 보자.<\/p>\n        <\/div>"}, {"t": "input", "label": "PM10이 급증한 구간과 해석", "ph": "예: 5월 12일 0시~8시 — 이 시간 동안 '풍속'은 0.5 m/s 이하로 매우 약했고 '습도'는 80% 이상으로 높았다. 즉, 대기 정체가 원인으로 보인다.", "rows": 3}, {"t": "input", "label": "PM10이 급감한 구간과 해석", "ph": "예: 5월 15일 10시~15시 — 이 시간 동안 '풍속'이 강해지거나 '강수(비)'가 시작되어 미세먼지가 씻겨나간 것으로 보인다.", "rows": 3}]}, {"id": "p8", "cat": "활동해요", "icon": "💻", "title": "3. 관계 분석과 모델링", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 관계 분석과 모델링<\/h3>\n          <h4>활동 1: 산점도(Scatter Plot)로 관계 해석하기<\/h4>\n          <p>엑셀 등을 이용해 3가지 산점도를 그리고, 1차시 가설을 확인한다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin:10px 0\">\n            <thead><tr style=\"background:var(--accent-lt)\"><th style=\"padding:6px 10px;border:1px solid var(--border)\">산점도 (X-Y)<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">산점도 스케치 (경향)<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">관계 해석 (방향/강도)<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">1차시 가설과 비교<\/th><\/tr><\/thead>\n            <tbody>\n              <tr><td style=\"padding:8px 10px;border:1px solid var(--border);font-weight:600\">기온 – PM10<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\">(점들이 흩어진 모양)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\">(예: 뚜렷한 관계 없음)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\">'일치'/'불일치'<\/td><\/tr>\n              <tr><td style=\"padding:8px 10px;border:1px solid var(--border);font-weight:600\">습도 – PM10<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\">(점들이 흩어진 모양)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\">(예: 약한 양(+)의 관계)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\">'일치'/'불일치'<\/td><\/tr>\n              <tr><td style=\"padding:8px 10px;border:1px solid var(--border);font-weight:600\">풍속 – PM10<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\">(점들이 흩어진 모양)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\">(예: 강한 음(-)의 관계)<\/td><td style=\"padding:8px 10px;border:1px solid var(--border)\">'일치'/'불일치'<\/td><\/tr>\n            <\/tbody>\n          <\/table>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><h4>활동 2: 추세선과 직선식<\/h4><\/div>"}, {"t": "input", "label": "선택한 변수 (X)와 추세선 방정식 (y = ax + b)", "ph": "예: X = 풍속, y = -5.2x + 60.5", "rows": 1}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>활동 3: 예측값과 오차 계산하기<\/h4>\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin:10px 0\">\n            <thead><tr style=\"background:var(--blue-lt)\"><th style=\"padding:6px 10px;border:1px solid var(--border)\">시간 (예)<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">실제 X 값 (예: 풍속)<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">실제 Y 값 (PM10)<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">예측 Y 값 (a×X+b)<\/th><th style=\"padding:6px 10px;border:1px solid var(--border)\">오차 (실제Y - 예측Y)<\/th><\/tr><\/thead>\n            <tbody>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border)\">5/20 10시<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">1.5 m/s<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">45<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">(예: -5.2×1.5+60.5=52.7)<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">(예: 45-52.7=-7.7)<\/td><\/tr>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border)\">5/20 11시<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">2.1 m/s<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">30<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\"><\/td><\/tr>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border)\">5/20 12시<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">0.5 m/s<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">70<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\"><\/td><\/tr>\n              <tr><td style=\"padding:6px 10px;border:1px solid var(--border)\">5/20 13시<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">3.0 m/s<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\">15<\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\"><\/td><td style=\"padding:6px 10px;border:1px solid var(--border)\"><\/td><\/tr>\n            <\/tbody>\n          <\/table>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><h4>활동 4: 오차 분석 및 원인 탐색<\/h4><\/div>"}, {"t": "input", "label": "오차가 가장 컸던 시간(구간)과 이유 (추측)", "ph": "예: 5/20 12시 — 풍속(X)은 약했지만, 비가 내려서(모델이 모르는 변수) 실제 Y값이 예측보다 훨씬 낮아졌다.", "rows": 3}]}, {"id": "p9", "cat": "활동해요", "icon": "💻", "title": "4. 위험등급 예측 모델과 발표", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 예측 모델 구현 및 발표<\/h3>\n          <p>★ 우리 모둠만의 '미세먼지 위험등급 예측 모델'을 만들고, 그 결과를 발표해 보자.<\/p>\n          <h4>활동 1: 위험등급 예측 모델 만들기<\/h4>\n        <\/div>"}, {"t": "tabs", "tabs": [{"label": "엑셀로 만들기", "content": "<p><strong>규칙 정의<\/strong>: IF, AND, OR 함수를 사용해 우리 모둠만의 '규칙'을 만든다.<\/p><p>예: <code>=IF(AND(풍속 &lt; 1.0, 습도 &gt; 70), \"위험\", IF(풍속 &gt; 3.0, \"좋음\", \"보통\"))<\/code><\/p>"}, {"label": "파이썬으로 만들기", "content": "<p><strong>규칙 정의<\/strong>: if, elif, else를 사용해 위험등급을 반환(return)하는 함수를 작성한다.<\/p><pre style=\"background:var(--bg);padding:12px;border-radius:var(--radius-sm);font-size:13px;font-family:monospace;margin-top:8px\">def predict_pm_risk(temp, humidity, wind):\n    # 예시:\n    if wind < 1.0 and humidity > 70:\n        return \"위험\"\n    elif wind > 3.0:\n        return \"좋음\"\n    else:\n        return \"보통\"<\/pre>"}]}, {"t": "input", "label": "우리 모둠의 규칙 (엑셀 수식 또는 파이썬 함수)", "ph": "예: =IF(AND(풍속<1, 습도>70), '위험', IF(풍속>3, '좋음', '보통'))", "rows": 3}, {"t": "html", "v": "<div class=\"blk\"><h4>활동 2: 실시간 현장 테스트!<\/h4><\/div>"}, {"t": "prediction", "items": [{"label": "현재 기온 (℃)", "ph": "기상자료개방포털에서 확인"}, {"label": "현재 습도 (%)", "ph": "기상자료개방포털에서 확인"}, {"label": "현재 풍속 (m/s)", "ph": "기상자료개방포털에서 확인"}, {"label": "[예측] 위험 등급", "ph": "우리 모델의 출력 결과"}, {"label": "[실제] PM10 등급", "ph": "AirKorea에서 확인"}]}, {"t": "input", "label": "테스트 결과 분석: 우리 모델의 예측은 성공/실패 했다. 이유 분석:", "ph": "예: 예측에 성공했다. / 풍속 외에 다른 요인이 더 크게 작용한 것 같다.", "rows": 3}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>활동 3: 성과물 제작 (미리캔버스 등)<\/h4>\n          <p>탐구 과정과 결과를 요약하여 3~5장 내외의 카드뉴스(또는 슬라이드)로 제작해 보자.<\/p>\n          <div style=\"background:var(--surface-alt);border:1px dashed var(--border);border-radius:var(--radius-sm);padding:12px 16px;margin:10px 0;font-size:13px\">\n            <strong>[발표 필수 포함 요소]<\/strong><br>\n            • 1차시: 탐구 질문과 가설<br>\n            • 2차시: 핵심 통계 자료 (예: PM10 상자그림 또는 시간선 그래프)<br>\n            • 3차시: 가장 중요했던 산점도와 추세선 (y=ax+b)<br>\n            • 3차시: 기울기 a의 의미 해석!<br>\n            • 4차시: 우리 모둠의 예측 모델(규칙)과 실시간 테스트 결과<br>\n            • 결론: 최종 결론 및 탐구의 한계점\n          <\/div>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><h4>활동 4: 모둠별 발표 및 동료 피드백<\/h4><p>다른 모둠의 발표를 듣고, 피드백을 작성하여 제출해 보자.<\/p><\/div>"}, {"t": "input", "label": "다른 모둠 발표에 대한 피드백", "ph": "인상 깊었던 점, 궁금한 점, 개선 제안 등을 적어 보세요.", "rows": 3}]}, {"id": "p10", "cat": "정리", "icon": "✅", "title": "스스로 진단하기", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 이번 수업에서 무엇을 배웠는지 점검해 봅시다<\/h3>\n          <p>아래 항목을 읽고, 자신의 이해 정도를 솔직하게 평가해 봅시다.<\/p>\n        <\/div>"}, {"t": "assessment", "title": "학습 점검표", "ratings": ["잘함", "보통", "미흡"], "items": ["빅카인즈로 사건선(황사·무풍·강수) 타임라인을 만들고, AirKorea·KMA에서 공주(인접) 동일 기간·지점 데이터를 적절히 선택했다.", "시간 형식/단위 통일, 결측·이상치 표기 완료하고, 히스토그램·상자그림으로 대표값·흩어진 정도·기준치 초과 비율을 해석했다.", "산점도 작성 → 방향 설명, 직선식 y=ax+b의 기울기·절편(단위) 해석, 예측–실제 차 원인 분석을 수행했다.", "엑셀/파이썬으로 위험등급 출력을 구현하고 KMA 현재값으로 시연, AirKorea와 비교 검증 후 카드뉴스/슬라이드로 결과·한계·개선을 제시했다."]}]}, {"id": "p11", "cat": "정리", "icon": "❓", "title": "활동퀴즈 1. 핵심 수학 개념", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 핵심 수학 개념<\/h3><\/div>"}, {"t": "quiz", "num": "01", "q": "7시간 동안의 PM10 농도 데이터가 다음과 같을 때, 이 자료의 중앙값(Median)은?<br><strong>20, 45, 25, 150, 35, 40, 30<\/strong>", "opts": ["25", "30", "35", "40", "50"], "ans": 2, "ok": "정답입니다! 데이터를 크기순으로 정렬하면 20, 25, 30, 35, 40, 45, 150 이므로 중앙값은 35입니다.", "no": "데이터를 크기순으로 정렬한 후 가운데 값을 찾아봅시다: 20, 25, 30, 35, 40, 45, 150"}, {"t": "quiz", "num": "02", "q": "풍속(x, 단위: m/s)과 PM10 농도(y)의 관계를 분석하여 선형 회귀 직선 y = −6.2x + 75를 얻었다. 기울기 a = −6.2의 의미로 가장 올바른 해석은?", "opts": ["풍속이 0일 때, PM10 농도는 6.2이다.", "PM10 농도가 0일 때, 풍속은 6.2이다.", "풍속이 1 m/s 증가할 때, PM10 농도는 평균 6.2 증가한다.", "풍속이 1 m/s 증가할 때, PM10 농도는 평균 6.2 감소한다.", "풍속과 PM10 농도의 합은 항상 75.0이다."], "ans": 3, "ok": "정답입니다! 기울기 a = −6.2는 풍속이 1 m/s 증가할 때 PM10 농도가 평균 6.2 µg/m³ 감소한다는 의미입니다.", "no": "기울기의 부호(−)에 주목해 봅시다. 음의 기울기는 x가 증가하면 y가 감소함을 의미합니다."}, {"t": "quiz", "num": "03", "q": "습도(x, 단위: %)에 따른 PM10 농도(y)의 관계가 2차 함수 y = 0.01x² − 0.8x + 40 과 같은 경향을 보였다. PM10 농도가 가장 낮아지는(극소) 지점의 습도(x)는?", "opts": ["20 %", "30 %", "40 %", "50 %", "80 %"], "ans": 2, "ok": "정답입니다! y' = 0.02x − 0.8 = 0에서 x = 40이 극소점입니다.", "no": "y를 x에 대해 미분하여 y' = 0이 되는 x를 구해봅시다: y' = 0.02x − 0.8 = 0"}]}, {"id": "p12", "cat": "정리", "icon": "❓", "title": "활동퀴즈 2. 데이터 탐구 응용", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 데이터 탐구 응용<\/h3><\/div>"}, {"t": "quiz", "num": "04", "q": "총 500시간의 데이터를 분석한 결과, '나쁨'(81~150µg/m³)에 해당하는 시간이 40시간, '매우 나쁨'(151µg/m³ 이상)에 해당하는 시간이 10시간이었다. 미세먼지 농도가 '나쁨' 이상(>80µg/m³)이었던 시간의 상대도수는?", "opts": ["0.08 (8%)", "0.10 (10%)", "0.12 (12%)", "0.15 (15%)", "0.20 (20%)"], "ans": 1, "ok": "정답입니다! (40+10)/500 = 50/500 = 0.10 (10%)입니다.", "no": "'나쁨' 이상인 시간 = 40 + 10 = 50시간. 상대도수 = 50 / 500 을 계산해 봅시다."}, {"t": "quiz", "num": "05", "q": "공주시 100시간 동안의 PM10 데이터를 상자그림으로 나타낸 것이다. 상자의 왼쪽 끝(Q1)은 20, 상자 안 중앙선(Q2)은 35, 상자의 오른쪽 끝(Q3)은 55이다. 수염은 10과 80까지 이어져 있고, 120 지점에 별도(*)로 표시된 점이 있다. 이 그림에 대한 설명으로 <strong>틀린<\/strong> 것은?", "opts": ["중앙값(Q2)은 35이다.", "데이터의 50%가 20과 55 사이에 분포한다.", "IQR(사분위수 범위)은 55 − 20 = 35이다.", "값 120은 이상치(Outlier)로 볼 수 있다.", "평균(Mean)은 35이다."], "ans": 4, "ok": "정답입니다! 중앙값(Median)은 35이지만, 평균(Mean)은 이상치(120)의 영향을 받아 35보다 클 가능성이 높습니다. 상자그림에서 평균은 알 수 없습니다.", "no": "상자그림은 중앙값, 사분위수, 이상치를 보여주지만 '평균'은 직접 나타내지 않습니다."}, {"t": "quiz", "num": "06", "q": "다음과 같은 '미세먼지 위험도 점수' 규칙을 만들었다. (점수가 높을수록 위험)<br><strong>위험도 = (0.5 × 습도) − (3.0 × 풍속)<\/strong><br>아래 세 가지 기상 조건 중, 위험도 점수가 가장 높은 조건은?<br>A: 습도 80%, 풍속 2.0 m/s<br>B: 습도 60%, 풍속 0.5 m/s<br>C: 습도 50%, 풍속 3.0 m/s", "opts": ["A (위험도 = 34)", "B (위험도 = 28.5)", "C (위험도 = 16)", "A와 B가 동일", "A, B, C 모두 동일"], "ans": 0, "ok": "정답입니다! A: 0.5×80 − 3.0×2.0 = 40 − 6 = 34, B: 0.5×60 − 3.0×0.5 = 30 − 1.5 = 28.5, C: 0.5×50 − 3.0×3.0 = 25 − 9 = 16. A가 가장 높습니다.", "no": "각 조건의 위험도를 계산해 봅시다: 위험도 = (0.5 × 습도) − (3.0 × 풍속)"}]}, {"id": "p13", "cat": "정리", "icon": "📚", "title": "읽기 자료", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>★ 공주시 미세먼지 데이터 이야기<\/h3>\n          <p>어떤 날은 금강 너머까지 맑게 보이지만 어떤 날은 하늘이 뿌옇고 목이 칼칼한 날이 있다. 우리는 경험적으로 '바람이 없는 날'이나 '안개가 낀 날'에 미세먼지가 심하다고 \"느낀다.\" 하지만 '얼마나' 심해지는지, '기온'이나 '습도'는 정말 아무런 관련이 없는지 정확히 \"설명하기\"는 어렵다. 이 자료는 우리가 가진 '느낌'이나 '가설'을 실제 공공데이터와 수학적 원리에 기반하여 검증하는 과정을 탐구한다. 데이터를 통해 '감'이 아닌 '근거'를 찾고, 기상 조건에 따른 미세먼지 변화의 규칙(패턴)을 수학적 모델로 설명하는 것이 이 탐구의 최종 목표이다.<\/p>\n        <\/div>"}, {"t": "tabs", "tabs": [{"label": "❶ 기술 통계와 분포", "content": "<p><strong>데이터의 '성격' 파악하기<\/strong><\/p><p>수집한 데이터 전체의 특징을 몇 개의 숫자로 요약하는 방법이다. 평균은 모든 값을 더해 개수로 나눈 익숙한 값이지만, 150처럼 극단적인 값 하나에 크게 영향을 받는다. 반면 중앙값(Q2)은 데이터를 순서대로 줄 세웠을 때 정확히 한가운데 있는 값으로, 데이터의 '진짜 중심'을 보여줄 때 유용하다.<\/p><p>\"공주시 PM10의 평균은 40µg/m³\"라고 말하는 것보다, 상자그림을 통해 \"PM10 농도는 보통 20~55(Q1~Q3) 사이에 있지만, 120이 넘는 '이상치'가 가끔 발생한다\"라고 설명하는 것이 데이터의 성격을 훨씬 더 정확하게 전달한다.<\/p>"}, {"label": "❷ 시계열과 변화율", "content": "<p><strong>'시간' 속 패턴 읽기<\/strong><\/p><p>x축을 '시간'으로 놓고 y축의 값(PM10) 변화를 선그래프로 그리는 방법이다. 이 그래프에서 선의 기울기는 '변화율'을 의미한다. 기울기가 가파른 양수면 농도가 '급증'하는 것이고, 음수면 '급감'하는 것이다. 기울기가 0이 되는 지점은 농도가 최고점(극대)이나 최저점(극소)에 도달했음을 의미한다.<\/p><p>\"비가 오기 시작한 15시부터 PM10이 급격히 감소(기울기 음수)\"했거나, \"바람이 멈춘 새벽 3시부터 PM10이 급증(기울기 양수)\"했다는 식의 동적인 분석이 가능해진다.<\/p>"}, {"label": "❸ 산점도와 회귀", "content": "<p><strong>'관계'를 함수식으로 만들기<\/strong><\/p><p>\"바람이 불면 미세먼지가 줄어든다\"는 가설을 PM10 = −5.2×(풍속) + 60.5 와 같은 수학적 모델(함수식)로 만들 수 있다. 이 식의 기울기 a = −5.2 는 \"풍속이 1 m/s 강해질 때마다, PM10 농도는 평균적으로 5.2 µg/m³씩 감소한다\"는 강력한 해석을 가능하게 한다.<\/p>"}]}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>★ 수학적 모델링의 분야별 실제 활용방안<\/h3>\n          <ul>\n            <li><strong>경제·금융<\/strong>: 주식 가격이나 환율의 과거 데이터를 시계열 그래프로 분석하여 미래 추세를 예측한다.<\/li>\n            <li><strong>의학·공공보건<\/strong>: 환자군의 나이, 체중, 혈압 등의 데이터를 기술 통계(상자그림)로 분석하여 질병의 위험 요인을 파악한다.<\/li>\n            <li><strong>제조·IT<\/strong>: 공장 설비의 온도, 압력 센서 데이터를 시계열 그래프로 실시간 모니터링하여, '이상치'가 감지되면 기계 고장을 사전에 경고한다.<\/li>\n          <\/ul>\n        <\/div>"}]}, {"id": "p14", "cat": "정리", "icon": "🧭", "title": "진로 연계", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 프로그램 소개 — 공간 데이터 분석 프로젝트<\/h3>\n          <p>공공데이터포털(TAAS 교통사고분석시스템)에서 공주시의 '어린이 보호 구역(스쿨존) 내 교통사고' 원본 데이터를 수집하고, 통계(빈도분석, 교차분석)를 활용해 사고 다발 지점을 찾고, GIS 기술로 시각화하며, 수학적 근거에 기반한 안전 대책을 제안하는 프로젝트입니다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 관련 도서 소개<\/h3>\n          <ul>\n            <li><strong>«모두의 데이터 분석 with 파이썬»<\/strong> (길벗) — 공공데이터를 파이썬(Pandas)으로 불러와 정제하고, 시각화하는 실전 입문서<\/li>\n            <li><strong>«GIS, 공간을 보는 새로운 창»<\/strong> (한울아카데미) — 위치 데이터를 활용해 핫스팟, 경로, 분포 등을 분석하는 GIS의 핵심 원리 소개<\/li>\n            <li><strong>«데이터 분석을 위한 SQL 레시피»<\/strong> (제이펍) — 수백만 건의 데이터에서 원하는 조건만 뽑아내는 SQL 쿼리 기술 학습<\/li>\n            <li><strong>«교통공학원론»<\/strong> (청문각) — 도로 설계, 신호 체계, 교통 흐름, 안전 정책 등 교통 문제를 공학적으로 접근하는 전공서적<\/li>\n          <\/ul>\n        <\/div>"}, {"t": "cards", "items": [{"front": "교통 데이터 분석가", "back": "통계 지식, SQL, GIS, 교통공학 이해를 바탕으로 사고 데이터, CCTV 영상, 통행량 데이터를 융합 분석"}, {"front": "GIS 분석가\n(공간정보 전문가)", "back": "ArcGIS/QGIS, 공간 통계, 파이썬(Geopandas) 활용. 스쿨존 사고 데이터를 지도에 핫스팟(히트맵)으로 시각화"}, {"front": "도시계획가\n교통 플래너", "back": "도시공학, 교통 시뮬레이션, 정책 이해. 데이터 분석 결과를 바탕으로 안전 대책을 실제 도시 설계에 반영"}, {"front": "AI 엔지니어\n(컴퓨터 비전)", "back": "머신러닝, 딥러닝, 컴퓨터 비전. 차량용 카메라나 CCTV 영상에서 위험을 실시간으로 예측하는 AI 모델 개발"}]}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 대학 전공 소개<\/h3>\n          <ul>\n            <li><strong>교통공학과 / 도시공학과<\/strong>: 교통 흐름 분석, 도시 및 교통 계획, GIS, 교통 안전 정책<\/li>\n            <li><strong>통계학과 / 데이터사이언스학과<\/strong>: 회귀분석, 통계적 가설 검정, 머신러닝, 시계열 분석<\/li>\n            <li><strong>지리학과 / 지리정보학과 (GIS)<\/strong>: GIS(지리정보시스템), 공간 통계, 원격 탐사, 지도학<\/li>\n            <li><strong>컴퓨터공학과 / AI학과<\/strong>: 프로그래밍(파이썬), 데이터베이스, AI, 컴퓨터 비전<\/li>\n            <li><strong>산업공학과 / 시스템공학과<\/strong>: 최적화(Optimization), 시뮬레이션, 인간공학<\/li>\n          <\/ul>\n        <\/div>"}, {"t": "link", "url": "https://www.career.go.kr/", "icon": "🧭", "title": "커리어넷 — 직업·전공 탐색", "desc": "데이터 분석, 교통공학, GIS 관련 직업과 학과 정보를 탐색할 수 있습니다"}, {"t": "link", "url": "https://www.airkorea.or.kr/", "icon": "🌍", "title": "AirKorea — 전국 실시간 대기환경 정보", "desc": "실시간 미세먼지 현황과 과거 통계 데이터를 확인할 수 있습니다"}]}]};
+</script>
+<script>
+/* =====================================================================
+   공주시 AIDT 공통 엔진 v1
+   - 학습 기록 자동 저장(브라우저 localStorage)
+   - 학습자 정보, 활동 기반 진행률, 학습 시간
+   - 2회 도전형 퀴즈 + 오답 시 관련 개념 페이지 안내
+   - 나의 학습 리포트(성취 수준·맞춤 학습 경로·메타인지 비교)
+   - 학습 기록 내려받기(JSON) → 교사용 대시보드에서 분석
+   ===================================================================== */
+(function () {
+  'use strict';
+  var LID = META.id, KEY = 'aidt:v1:' + LID, PKEY = 'aidt:v1:profile';
+  var CFG = window.AIDT_CONFIG || {}, SUBMIT_URL = String(CFG.submitUrl || '').trim();
+  var VIDS = META.videos || [];
+
+  /* ---------- 저장소 ---------- */
+  var mem = {};
+  function sget(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return mem[k] || d; } }
+  function sset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } }
+  function fresh() { return { v: 1, inputs: {}, quiz: {}, assess: {}, steps: {}, videos: {}, visited: [], time: {}, last: 'p1', started: Date.now(), updated: Date.now() }; }
+  var S = sget(KEY, null) || fresh();
+  var P = sget(PKEY, null);
+  S.videos = S.videos || {};
+  var saveTimer = null;
+  function save(immediate) {
+    S.updated = Date.now();
+    S.summary = summary();
+    if (immediate) { sset(KEY, S); pill(); return; }
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () { sset(KEY, S); pill(); }, 300);
+  }
+
+  /* ---------- 유틸 ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function txt(h) { return String(h || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function $(s) { return document.querySelector(s); }
+  function fmtTime(sec) { sec = Math.round(sec || 0); var m = Math.floor(sec / 60); return m >= 60 ? Math.floor(m / 60) + '시간 ' + (m % 60) + '분' : m + '분 ' + (sec % 60) + '초'; }
+  var CIRC = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
+
+  /* ---------- 리포트 페이지 추가 ---------- */
+  if (VIDS.length) D.pages.splice(1, 0, { id: 'video', cat: '도입', icon: '🎬', title: '영상으로 미리 보기', blocks: [{ t: 'videos' }] });
+  D.pages.push({ id: 'report', cat: '마무리', icon: '📊', title: '나의 학습 리포트', blocks: [{ t: 'report' }] });
+  var PAGES = D.pages;
+  function pageById(id) { for (var i = 0; i < PAGES.length; i++) if (PAGES[i].id === id) return PAGES[i]; return null; }
+
+  /* ---------- 추적 항목(진행률 산정 대상) ---------- */
+  var ITEMS = [];          // {key,type,pid,label,...}
+  var QUIZ = [];           // 퀴즈 메타
+  PAGES.forEach(function (p) {
+    p.blocks.forEach(function (b, bi) {
+      var k = p.id + '.' + bi;
+      if (b.t === 'videos') VIDS.forEach(function (v, i) { ITEMS.push({ key: 'vid.' + v, type: 'video', pid: p.id, label: '영상 ' + (i + 1), vid: v }); });
+      if (b.t === 'input') ITEMS.push({ key: k, type: 'input', pid: p.id, label: txt(b.label) });
+      if (b.t === 'prediction') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'input', pid: p.id, label: txt(x.label) }); });
+      if (b.t === 'assessment') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'assess', pid: p.id, label: txt(x), ratings: b.ratings }); });
+      if (b.t === 'quiz') { var q = { key: k, type: 'quiz', pid: p.id, b: b, num: b.num, q: txt(b.q) }; ITEMS.push(q); QUIZ.push(q); }
+    });
+  });
+  function itemDone(it) {
+    if (it.type === 'input') return !!(S.inputs[it.key] && S.inputs[it.key].trim());
+    if (it.type === 'assess') return S.assess[it.key] != null;
+    if (it.type === 'quiz') return !!(S.quiz[it.key] && S.quiz[it.key].done);
+    if (it.type === 'video') return !!S.videos[it.vid];
+    return false;
+  }
+  function pageState(pid) {
+    var its = ITEMS.filter(function (x) { return x.pid === pid; });
+    if (pid === 'report') return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    if (!its.length) return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    var d = its.filter(itemDone).length;
+    return d === its.length ? 'done' : (d > 0 || S.visited.indexOf(pid) >= 0 ? 'part' : '');
+  }
+
+  /* ---------- 퀴즈 → 관련 개념 페이지 연결(어휘 중첩 기반) ---------- */
+  function words(s) { return (s.match(/[가-힣A-Za-z0-9]{2,}/g) || []); }
+  var conceptPages = PAGES.filter(function (p) { return p.cat === '알아봐요'; });
+  if (!conceptPages.length) conceptPages = PAGES.filter(function (p) { return p.cat === '활동해요'; });
+  var pageWords = {};
+  conceptPages.forEach(function (p) {
+    var t = p.title + ' ' + p.blocks.map(function (b) { return txt(b.v || b.body || b.title || '') + ' ' + (b.items ? txt(JSON.stringify(b.items)) : '') + ' ' + (b.tabs ? txt(JSON.stringify(b.tabs)) : ''); }).join(' ');
+    var set = {}; words(t).forEach(function (w) { set[w] = 1; set[w.slice(0, 2)] = 1; });
+    pageWords[p.id] = set;
+  });
+  var DF = {}, NP = conceptPages.length;
+  conceptPages.forEach(function (p) { for (var w in pageWords[p.id]) DF[w] = (DF[w] || 0) + 1; });
+  function idf(w) { return Math.log(1 + NP / (DF[w] || NP)); }
+  QUIZ.forEach(function (q) {
+    var b = q.b, src = b.q + ' ' + b.opts[b.ans] + ' ' + txt(b.ok), best = null, bs = -1;
+    var ws = {}; words(src).forEach(function (w) { ws[w] = 1; });
+    conceptPages.forEach(function (p) {
+      var s = 0, n = 0; for (var w in ws) { if (pageWords[p.id][w]) s += idf(w); else if (pageWords[p.id][w.slice(0, 2)]) s += idf(w.slice(0, 2)) * 0.3; }
+      for (var k in pageWords[p.id]) n++;
+      s = s / Math.pow(n + 20, 0.25);
+      if (s > bs) { bs = s; best = p; }
+    });
+    q.concept = best ? best.id : null;
+  });
+
+  /* ---------- 오답 힌트: 정답을 그대로 노출하면 일반 힌트로 대체 ---------- */
+  function safeHint(b) {
+    var h = txt(b.no), a = String(b.opts[b.ans]).trim();
+    var leak = a && h.indexOf(a) >= 0 && (a.length >= 3 || new RegExp('(=|은|는|이|가)\\s*' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(입니다|이다|이에요|$|\\.)').test(h));
+    if (!h || leak) return '풀이 과정을 다시 확인해 보세요. 관련 개념을 복습한 뒤 한 번 더 도전해 보세요.';
+    return h.replace(/^(힌트\s*[:：]\s*)/, '').replace(/^다시\s*(생각|계산)해\s*봅시다[.!]?\s*/, '');
+  }
+  function stripOk(s) { return txt(s).replace(/^(정답입니다[.!]?|정답[!.]|맞아요[.!]?|맞습니다[.!]?)\s*/, ''); }
+
+  /* ---------- 블록 렌더러 ---------- */
+  function rBlock(b, pid, bi) {
+    var k = pid + '.' + bi;
+    switch (b.t) {
+      case 'html': return b.v;
+      case 'objectives': return '<div class="blk blk-card"><h3>🎯 학습목표</h3><ul class="obj-list">' + b.items.map(function (x, i) { return '<li><span class="obj-num">' + (i + 1) + '</span><span>' + x + '</span></li>'; }).join('') + '</ul></div>';
+      case 'callout': return '<div class="callout ' + (b.variant || '') + '"><div class="c-title">' + b.title + '</div><div class="c-body">' + b.body + '</div></div>';
+      case 'input': {
+        var v = esc(S.inputs[k] || ''), lab = b.label;
+        return '<div class="blk input-group' + (v ? ' filled' : '') + '"><label for="i_' + k + '">' + lab + '</label>' +
+          (b.rows > 1 ? '<textarea id="i_' + k + '" data-k="' + k + '" rows="' + b.rows + '" placeholder="' + esc(b.ph || '') + '">' + v + '</textarea>'
+            : '<input type="text" id="i_' + k + '" data-k="' + k + '" placeholder="' + esc(b.ph || '') + '" value="' + v + '">') + '</div>';
+      }
+      case 'steps': return '<div class="steps"><div class="s-hd">📋 ' + b.title + '</div>' + b.items.map(function (s, i) {
+        var sk = k + '.' + i; return '<div class="step' + (S.steps[sk] ? ' done' : '') + '" data-sk="' + sk + '"><div class="s-n">' + (i + 1) + '</div><div class="s-c"><h4>' + s.title + '</h4><p>' + s.desc + '</p></div></div>';
+      }).join('') + '</div>';
+      case 'link': return '<a class="link-card" href="' + b.url + '" target="_blank" rel="noopener"><div class="l-icon">' + (b.icon || '🔗') + '</div><div class="l-info"><h4>' + b.title + '</h4><p>' + b.desc + '</p></div></a>';
+      case 'tabs': {
+        var tid = 't_' + k.replace('.', '_');
+        return '<div class="blk"><div class="tabs-nav">' + b.tabs.map(function (t, i) { return '<button class="tab-btn ' + (i === 0 ? 'active' : '') + '" data-tid="' + tid + '" data-ti="' + i + '">' + t.label + '</button>'; }).join('') + '</div>' +
+          b.tabs.map(function (t, i) { return '<div class="tab-panel ' + (i === 0 ? 'active' : '') + '" id="' + tid + '-' + i + '">' + t.content + '</div>'; }).join('') + '</div>';
+      }
+      case 'cards': return '<div class="cards-grid">' + b.items.map(function (c) { return '<div class="flip-card"><div class="flip-inner"><div class="flip-front">' + c.front.replace(/\n/g, '<br>') + '</div><div class="flip-back">' + c.back + '</div></div></div>'; }).join('') + '</div>';
+      case 'prediction': return '<div class="blk blk-card"><h4>🔮 예측 조건/행동 입력</h4>' + b.items.map(function (x, i) {
+        var pk = k + '.' + i; return '<div class="pred-row"><label for="i_' + pk + '">' + x.label + '</label><input type="text" id="i_' + pk + '" data-k="' + pk + '" placeholder="' + esc(x.ph || '') + '" value="' + esc(S.inputs[pk] || '') + '" style="width:100%"></div>';
+      }).join('') + '<div class="auto-note">✔ 입력하면 자동으로 저장됩니다.</div></div>';
+      case 'quiz': return quizHTML(k);
+      case 'assessment': return '<div class="blk blk-card"><h3>✅ ' + b.title + '</h3>' + b.items.map(function (x, i) {
+        var ak = k + '.' + i; return '<div class="assess-item"><span>' + x + '</span><div class="rating-g">' + b.ratings.map(function (r, ri) { return '<button class="r-btn' + (S.assess[ak] === ri ? ' sel' : '') + '" data-ak="' + ak + '" data-ri="' + ri + '">' + r + '</button>'; }).join('') + '</div></div>';
+      }).join('') + '</div>';
+      case 'code': {
+        var cid = 'c_' + k.replace('.', '_');
+        return '<div class="blk code-blk"><div class="code-hd"><span>' + esc(b.lang) + '</span><button class="code-copy" data-cid="' + cid + '">코드 복사</button></div><div class="code-bd"><pre id="' + cid + '">' + esc(b.code) + '</pre></div></div>';
+      }
+      case 'wokwi': return '<div class="blk"><a class="link-card wokwi" href="https://wokwi.com/projects/new/arduino-uno" target="_blank" rel="noopener"><div class="l-icon">🔧</div><div class="l-info"><h4>Wokwi 시뮬레이터로 직접 실습해 보기 ↗</h4><p>새 탭으로 시뮬레이터를 열어두고, 아래 코드를 하나씩 복사해 붙여넣은 뒤 ▶ 버튼으로 실행해 보세요.</p></div></a></div>';
+      case 'videos': return '<div class="blk"><p>이번 차시의 핵심 내용을 짧은 영상 ' + VIDS.length + '편으로 먼저 만나 봅시다. 영상을 보고 다음 쪽 <b>생각해요</b>로 넘어가세요.</p></div><div class="vid-grid">' +
+        VIDS.map(function (v, i) { return '<div class="vid-card' + (S.videos[v] ? ' seen' : '') + '"><div class="vid-thumb" data-vid="' + v + '" style="background-image:url(https://i.ytimg.com/vi/' + v + '/hqdefault.jpg)"><span class="vid-play">▶</span></div><div class="vid-cap"><b>🎬 영상 ' + (i + 1) + '</b><span class="vid-seen">✓ 시청함</span><a href="https://youtu.be/' + v + '" target="_blank" rel="noopener" data-vlink="' + v + '">유튜브에서 보기 ↗</a></div></div>'; }).join('') +
+        '</div>' + (location.protocol === 'file:' ? '<p class="muted small">※ 파일로 열면 유튜브 새 탭에서 재생됩니다.</p>' : '');
+      case 'report': return reportHTML();
+      default: return '';
+    }
+  }
+
+  /* ---------- 퀴즈 ---------- */
+  function qmeta(key) { for (var i = 0; i < QUIZ.length; i++) if (QUIZ[i].key === key) return QUIZ[i]; }
+  function quizHTML(key) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] }, tries = st.tries || [];
+    var done = !!st.done, correct = done && tries[tries.length - 1] === b.ans;
+    var badge = '';
+    if (done && correct) badge = '<span class="q-badge ok">' + (tries.length === 1 ? '✓ 정답' : '✓ 2회 만에 정답') + '</span>';
+    else if (done) badge = '<span class="q-badge no">✗ 오답</span>';
+    else if (tries.length) badge = '<span class="q-badge try">기회 1번 남음</span>';
+    var h = '<div class="blk blk-card quiz-card" id="q_' + key.replace('.', '_') + '"><div class="quiz-q"><span class="qn">' + b.num + '.</span><span style="flex:1">' + b.q + '</span>' + badge + '</div>';
+    h += b.opts.map(function (o, i) {
+      var cls = '', mark = CIRC[i] || (i + 1);
+      if (tries.indexOf(i) >= 0 && i !== b.ans) { cls = ' wrong'; mark = '✗'; }
+      if (done && i === b.ans) { cls = ' correct'; mark = '✓'; }
+      var dis = done || tries.indexOf(i) >= 0 ? ' disabled' : '';
+      return '<div class="quiz-opt' + cls + dis + '" data-qk="' + key + '" data-qi="' + i + '"><span class="oc">' + mark + '</span><span>' + o + '</span></div>';
+    }).join('');
+    var concept = m.concept && pageById(m.concept);
+    var clink = concept ? '<a class="concept-link" data-go="' + concept.id + '">📖 관련 개념 다시 보기: ' + concept.title + '</a>' : '';
+    if (done && correct) h += '<div class="quiz-fb ok show">' + b.ok + '</div>';
+    else if (done) h += '<div class="quiz-fb no show"><b>정답은 ' + (CIRC[b.ans] || '') + ' ' + b.opts[b.ans] + '입니다.</b><br>💡 ' + stripOk(b.ok) + '</div>' + clink;
+    else if (tries.length) h += '<div class="quiz-fb no show"><b>다시 생각해 봅시다.</b> ' + safeHint(b) + '</div>' + clink;
+    return h + '</div>';
+  }
+  function answerQuiz(key, i) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] };
+    if (st.done || st.tries.indexOf(i) >= 0) return;
+    st.tries.push(i);
+    if (i === b.ans) { st.done = true; st.first = st.tries.length === 1; }
+    else if (st.tries.length >= 2) { st.done = true; st.first = false; }
+    st.at = Date.now();
+    S.quiz[key] = st; save(true);
+    var el = document.getElementById('q_' + key.replace('.', '_'));
+    if (el) el.outerHTML = quizHTML(key);
+    refreshProgress();
+  }
+
+  /* ---------- 영상 ---------- */
+  function markVideo(v) { if (!S.videos[v]) { S.videos[v] = Date.now(); save(true); refreshProgress(); } var c = document.querySelector('[data-vid="' + v + '"]'); if (c) c.closest('.vid-card').classList.add('seen'); }
+  function playVideo(el, v) {
+    markVideo(v); el.closest('.vid-card').classList.add('seen');
+    if (location.protocol === 'file:') { window.open('https://youtu.be/' + v, '_blank', 'noopener'); return; }
+    el.removeAttribute('data-vid'); el.style.backgroundImage = 'none';
+    el.innerHTML = '<iframe src="https://www.youtube.com/embed/' + v + '?autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="영상"></iframe>';
+  }
+
+  /* ---------- 요약 통계 ---------- */
+  function summary() {
+    var tot = ITEMS.length, done = ITEMS.filter(itemDone).length;
+    var qn = QUIZ.length, first = 0, second = 0, wrong = 0, answered = 0;
+    QUIZ.forEach(function (q) { var s = S.quiz[q.key]; if (!s || !s.done) return; answered++; var c = s.tries[s.tries.length - 1] === q.b.ans; if (c && s.first) first++; else if (c) second++; else wrong++; });
+    var score = answered ? Math.round((first + second * 0.5) / answered * 100) : null;
+    var prov = score == null ? '-' : score >= 80 ? '상' : score >= 50 ? '중' : '하';
+    var level = answered === 0 ? '-' : answered < qn ? '미완료' : prov;
+    var as = ITEMS.filter(function (x) { return x.type === 'assess' && S.assess[x.key] != null; });
+    var self = as.length ? Math.round(as.reduce(function (a, x) { return a + (2 - Math.min(2, S.assess[x.key])); }, 0) / (as.length * 2) * 100) : null;
+    var t = 0; for (var p in S.time) t += S.time[p];
+    var vw = VIDS.filter(function (v) { return S.videos[v]; }).length;
+    return { progress: tot ? Math.round(done / tot * 100) : 0, done: done, total: tot, quizTotal: qn, answered: answered, prov: prov, first: first, second: second, wrong: wrong, score: score, level: level, self: self, timeSec: Math.round(t), videosWatched: vw, videosTotal: VIDS.length };
+  }
+
+  /* ---------- 리포트 ---------- */
+  function reportHTML() {
+    var s = summary(), who = P ? esc(profileText(P)) : '<a class="concept-link" data-act="profile">학습자 정보 입력하기</a>';
+    var h = '<div class="blk blk-card rep-head"><div class="rep-who">👤 ' + who + '</div><div class="rep-meta">' + esc(META.subject) + ' ' + esc(META.code) + ' · ' + esc(D.title) + '</div>' +
+      '<div class="rep-stats">' +
+      stat('진행률', s.progress + '%', s.done + ' / ' + s.total + ' 활동') +
+      stat('퀴즈 성취도', s.answered ? s.score + '점' : '–', s.answered ? '1차 정답 ' + s.first + ' · 2차 정답 ' + s.second + ' · 오답 ' + s.wrong : '아직 풀지 않음') +
+      stat('성취 수준', s.level === '미완료' ? s.prov + '<small>(잠정)</small>' : s.level, s.level === '미완료' ? '퀴즈 ' + (s.quizTotal - s.answered) + '문항 남음' : s.level === '상' ? '목표 도달' : s.level === '중' ? '부분 도달' : s.level === '하' ? '보충 필요' : '') +
+      stat('학습 시간', fmtTime(s.timeSec), VIDS.length ? '영상 시청 ' + s.videosWatched + ' / ' + s.videosTotal + '편' : '이 차시에서 보낸 시간') + '</div></div>';
+
+    // 맞춤 학습 경로
+    var wrongQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return st && st.done && !st.first; });
+    var notQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return !st || !st.done; });
+    h += '<div class="blk blk-card"><h3>🧭 나에게 맞는 다음 학습</h3>';
+    if (!s.answered) {
+      h += '<p>먼저 활동퀴즈를 풀어 보세요. 결과에 따라 맞춤 학습 경로를 안내합니다.</p>' + (notQ.length ? '<p><a class="concept-link" data-go="' + notQ[0].pid + '">❓ 활동퀴즈 풀러 가기</a></p>' : '');
+    } else {
+      var L = s.prov;
+      var msg = (s.level === '미완료' ? '(지금까지 푼 ' + s.answered + '문항 기준) ' : '') + (L === '상' ? '🎉 학습목표에 도달했어요! 심화 자료로 생각을 넓혀 보세요.'
+        : L === '중' ? '👍 핵심은 이해했어요. 헷갈린 개념만 다시 정리하면 완벽해요.'
+          : '💪 기본 개념을 다시 다져 볼까요? 아래 순서대로 복습한 뒤 틀린 문제에 다시 도전해 보세요.');
+      h += '<p class="rep-msg lv-' + L + '">' + msg + '</p>';
+      var rec = [];
+      if (L === '하') conceptPages.forEach(function (p) { rec.push([p.id, '📖 기본 개념: ' + p.title]); });
+      var seen = {};
+      wrongQ.forEach(function (q) { if (q.concept && !seen[q.concept]) { seen[q.concept] = 1; var p = pageById(q.concept); if (L !== '하') rec.push([p.id, '📖 ' + q.num + '번 관련 개념: ' + p.title]); } });
+      if (L === '상') PAGES.forEach(function (p) { if (/읽기|진로/.test(p.title) && p.cat === '정리') rec.push([p.id, (/진로/.test(p.title) ? '🧭 ' : '📚 ') + '심화: ' + p.title]); });
+      if (notQ.length) rec.push([notQ[0].pid, '❓ 아직 풀지 않은 퀴즈 ' + notQ.length + '문항']);
+      if (rec.length) h += '<ol class="rec-list">' + rec.map(function (r) { return '<li><a class="concept-link" data-go="' + r[0] + '">' + r[1] + '</a></li>'; }).join('') + '</ol>';
+      if (wrongQ.length) h += '<button class="btn btn-o" data-act="retry">🔁 틀린 문제 다시 풀기 (' + wrongQ.length + '문항)</button>';
+    }
+    h += '</div>';
+
+    // 문항별 결과
+    if (QUIZ.length) {
+      h += '<div class="blk blk-card"><h3>📝 문항별 결과</h3><table class="rep-tbl"><tr><th>번호</th><th>문항</th><th>결과</th><th>다시 보기</th></tr>';
+      QUIZ.forEach(function (q) {
+        var st = S.quiz[q.key], r = '<span class="muted">미응시</span>';
+        if (st && st.done) { var c = st.tries[st.tries.length - 1] === q.b.ans; r = c ? (st.first ? '<span class="r-ok">✓ 정답</span>' : '<span class="r-mid">△ 2차 정답</span>') : '<span class="r-no">✗ 오답</span>'; }
+        var cp = q.concept && pageById(q.concept);
+        h += '<tr><td>' + q.num + '</td><td><a class="concept-link" data-go="' + q.pid + '">' + esc(q.q.length > 48 ? q.q.slice(0, 48) + '…' : q.q) + '</a></td><td>' + r + '</td><td>' + (cp ? '<a class="concept-link" data-go="' + cp.id + '">' + esc(cp.title) + '</a>' : '') + '</td></tr>';
+      });
+      h += '</table></div>';
+    }
+
+    // 메타인지: 자기진단 vs 퀴즈
+    if (s.self != null) {
+      var cmp = '';
+      if (s.answered) {
+        var d = s.self - s.score;
+        cmp = d > 25 ? '스스로 평가한 이해도(' + s.self + '%)가 퀴즈 결과(' + s.score + '점)보다 높아요. 틀린 문항의 개념을 다시 확인해 보세요.'
+          : d < -25 ? '퀴즈 결과(' + s.score + '점)가 스스로 평가한 이해도(' + s.self + '%)보다 높아요. 생각보다 잘 이해하고 있으니 자신감을 가져도 좋아요!'
+            : '스스로 평가한 이해도(' + s.self + '%)와 퀴즈 결과(' + s.score + '점)가 비슷해요. 자신의 학습 상태를 잘 파악하고 있어요.';
+      } else cmp = '스스로 평가한 이해도는 ' + s.self + '%입니다. 퀴즈를 풀면 실제 결과와 비교해 드려요.';
+      h += '<div class="blk blk-card"><h3>🪞 스스로 진단 vs 실제 결과</h3><p>' + cmp + '</p></div>';
+    }
+
+    // 미작성 활동
+    var empty = ITEMS.filter(function (x) { return (x.type === 'input' || x.type === 'assess') && !itemDone(x); });
+    h += '<div class="blk blk-card"><h3>✍️ 아직 작성하지 않은 활동 ' + (empty.length ? '(' + empty.length + '개)' : '') + '</h3>';
+    if (!empty.length) h += '<p>모든 활동을 작성했어요. 훌륭해요!</p>';
+    else {
+      var byP = {}; empty.forEach(function (x) { (byP[x.pid] = byP[x.pid] || []).push(x); });
+      h += '<ul class="rec-list">' + Object.keys(byP).map(function (pid) { var p = pageById(pid); return '<li><a class="concept-link" data-go="' + pid + '">' + p.icon + ' ' + esc(p.title) + '</a> <span class="muted">· ' + byP[pid].length + '개</span></li>'; }).join('') + '</ul>';
+    }
+    h += '</div>';
+
+    // 내 답변 모아보기
+    var filled = ITEMS.filter(function (x) { return x.type === 'input' && itemDone(x); });
+    if (filled.length) {
+      h += '<details class="blk blk-card"><summary><b>🗂️ 내가 작성한 답변 모아보기 (' + filled.length + '개)</b></summary><div class="ans-list">' +
+        filled.map(function (x) { return '<div class="ans-item"><div class="ans-q">' + esc(x.label) + '</div><div class="ans-a">' + esc(S.inputs[x.key]).replace(/\n/g, '<br>') + '</div></div>'; }).join('') + '</div></details>';
+    }
+
+    var sub = S.submittedAt ? new Date(S.submittedAt) : null;
+    if (SUBMIT_URL) h += '<div class="blk blk-card submit-box' + (sub ? ' done' : '') + '"><div><b>' + (sub ? '✅ 선생님께 제출했어요' : '📤 학습 결과를 선생님께 제출하세요') + '</b><div class="muted small">' + (sub ? '제출 시각 ' + sub.toLocaleString('ko-KR') + ' · 내용을 고쳤다면 다시 제출하세요(최신 기록으로 바뀝니다).' : '버튼을 누르면 선생님의 구글 시트로 바로 전송됩니다.') + '</div></div><button class="btn btn-p" data-act="submit">' + (sub ? '🔁 다시 제출하기' : '📤 선생님께 제출하기') + '</button></div>';
+    h += '<div class="blk rep-actions"><button class="btn ' + (SUBMIT_URL ? 'btn-o' : 'btn-p') + '" data-act="export">📥 학습 기록 내려받기</button><button class="btn btn-o" data-act="print">🖨️ 인쇄 / PDF 저장</button><button class="btn btn-o" data-act="reset">↺ 처음부터 다시 하기</button></div>' +
+      '<p class="muted small">' + (SUBMIT_URL ? '제출 버튼이 작동하지 않으면 학습 기록을 내려받아 선생님께 파일로 제출하세요.' : '내려받은 학습 기록(.json) 파일을 구글 클래스룸 등으로 선생님께 제출하세요.') + ' 선생님은 교사용 대시보드에서 학급 결과를 한눈에 볼 수 있어요. 학습 기록은 이 기기의 브라우저에만 저장됩니다.</p>';
+    return h;
+    function stat(l, v, sub) { return '<div class="rep-stat"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + sub + '</div></div>'; }
+  }
+
+  /* ---------- 내보내기 ---------- */
+  function profileText(p) { return [p.school, p.grade ? p.grade + '학년' : '', p.cls ? p.cls + '반' : '', p.num ? p.num + '번' : '', p.name].filter(Boolean).join(' '); }
+  function buildRecord() {
+    var s = summary();
+    return {
+      format: 'gongju-aidt-v1', exportedAt: new Date().toISOString(),
+      lesson: { id: LID, subject: META.subject, code: META.code, title: D.title },
+      student: P, summary: s,
+      quiz: QUIZ.map(function (q) { var st = S.quiz[q.key] || { tries: [] }; var c = st.done && st.tries[st.tries.length - 1] === q.b.ans; return { num: q.num, question: q.q, answer: txt(q.b.opts[q.b.ans]), tries: st.tries.map(function (i) { return txt(q.b.opts[i]); }), done: !!st.done, correct: !!c, firstCorrect: !!(c && st.first), concept: q.concept ? pageById(q.concept).title : '' }; }),
+      responses: ITEMS.filter(function (x) { return x.type === 'input'; }).map(function (x) { return { key: x.key, page: pageById(x.pid).title, prompt: x.label, answer: S.inputs[x.key] || '' }; }),
+      selfAssessment: ITEMS.filter(function (x) { return x.type === 'assess'; }).map(function (x) { return { item: x.label, rating: S.assess[x.key] != null ? x.ratings[S.assess[x.key]] : '', score: S.assess[x.key] != null ? 2 - Math.min(2, S.assess[x.key]) : null }; }),
+      timePerPage: PAGES.map(function (p) { return { page: p.title, sec: Math.round(S.time[p.id] || 0) }; }),
+      videos: VIDS.map(function (v, i) { return { n: i + 1, id: v, watched: !!S.videos[v] }; })
+    };
+  }
+  function exportRecord() {
+    if (!P || !P.name) { openProfile(function () { exportRecord(); }); return; }
+    var rec = buildRecord();
+    var name = [P.grade && P.cls && P.num ? P.grade + String(P.cls).padStart(2, '0') + String(P.num).padStart(2, '0') : '', P.name, META.subject + META.code].filter(Boolean).join('_') + '.json';
+    var blob = new Blob([JSON.stringify(rec, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast('📥 ' + name + ' 파일을 내려받았어요.');
+  }
+  var submitting = false;
+  function submitRecord(btn) {
+    if (!P || !P.name) { openProfile(function () { submitRecord(); }); return; }
+    if (submitting) return; submitting = true;
+    if (btn) { btn.disabled = true; btn.textContent = '제출 중…'; }
+    tick(); save(true);
+    var body = JSON.stringify(buildRecord());
+    function done(ok, msg) {
+      submitting = false;
+      if (ok) { S.submittedAt = Date.now(); save(true); toast('✅ 선생님께 제출했어요!'); }
+      else toast('⚠️ 제출하지 못했어요. ' + (msg || '인터넷 연결을 확인하거나 학습 기록을 내려받아 제출하세요.'));
+      if (cur === 'report') render('report');
+    }
+    fetch(SUBMIT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { done(!!j.ok, j.error === 'closed' ? '선생님이 제출을 마감했어요.' : ''); })
+      .catch(function () {
+        fetch(SUBMIT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body })
+          .then(function () { done(true); }, function () { done(false); });
+      });
+  }
+
+  /* ---------- 학습자 정보 ---------- */
+  function openProfile(after) {
+    var p = P || {};
+    var ov = document.createElement('div'); ov.className = 'modal-ov';
+    ov.innerHTML = '<div class="modal"><h3>👋 학습자 정보</h3><p class="muted small">학습 기록에 함께 저장되어 선생님께 제출할 때 사용됩니다. 이 기기의 모든 차시에 공통으로 적용돼요.</p>' +
+      '<div class="pf-grid"><label>학교<input id="pf_school" value="' + esc(p.school || '') + '" placeholder="예: 공주고등학교"></label>' +
+      '<label>학년<input id="pf_grade" inputmode="numeric" value="' + esc(p.grade || '') + '" placeholder="1"></label>' +
+      '<label>반<input id="pf_cls" inputmode="numeric" value="' + esc(p.cls || '') + '" placeholder="3"></label>' +
+      '<label>번호<input id="pf_num" inputmode="numeric" value="' + esc(p.num || '') + '" placeholder="12"></label>' +
+      '<label class="full">이름<input id="pf_name" value="' + esc(p.name || '') + '" placeholder="홍길동"></label></div>' +
+      '<div class="modal-btns"><button class="btn btn-o" id="pf_skip">나중에</button><button class="btn btn-p" id="pf_ok">저장하고 시작</button></div></div>';
+    document.body.appendChild(ov);
+    setTimeout(function () { var n = document.getElementById('pf_name'); if (n) n.focus(); }, 50);
+    ov.querySelector('#pf_skip').onclick = function () { ov.remove(); };
+    ov.querySelector('#pf_ok').onclick = function () {
+      var g = function (id) { return document.getElementById(id).value.trim(); };
+      if (!g('pf_name')) { document.getElementById('pf_name').focus(); toast('이름을 입력해 주세요.'); return; }
+      P = { school: g('pf_school'), grade: g('pf_grade'), cls: g('pf_cls'), num: g('pf_num'), name: g('pf_name') };
+      sset(PKEY, P); ov.remove(); renderWho(); if (cur === 'report') render('report'); if (after) after();
+    };
+  }
+  function renderWho() { var w = document.getElementById('who'); if (w) w.innerHTML = P ? '👤 ' + esc(profileText(P)) + ' <a data-act="profile">수정</a>' : '👤 <a data-act="profile">학습자 정보 입력</a>'; }
+
+  /* ---------- 화면 ---------- */
+  var cur = null, pageStart = Date.now();
+  function tick() {
+    if (cur && !document.hidden) { var dt = (Date.now() - pageStart) / 1000; if (dt > 0 && dt < 600) S.time[cur] = (S.time[cur] || 0) + dt; }
+    pageStart = Date.now();
+  }
+  setInterval(function () { tick(); save(); }, 15000);
+  document.addEventListener('visibilitychange', function () { tick(); save(true); });
+  window.addEventListener('beforeunload', function () { tick(); save(true); });
+
+  function buildNav() {
+    var h = '', c = null;
+    PAGES.forEach(function (p) {
+      if (p.cat !== c) { h += '<div class="nav-cat">' + p.cat + '</div>'; c = p.cat; }
+      var st = pageState(p.id);
+      h += '<div class="nav-item' + (p.id === cur ? ' active' : '') + (p.id === 'report' ? ' nav-report' : '') + '" data-pid="' + p.id + '"><span class="icon">' + p.icon + '</span><span style="flex:1">' + p.title + '</span><span class="nst ' + st + '">' + (st === 'done' ? '✓' : st === 'part' ? '•' : '') + '</span></div>';
+    });
+    document.getElementById('nav').innerHTML = h;
+  }
+  function refreshProgress() {
+    var s = summary();
+    document.getElementById('pTxt').textContent = s.progress + '%';
+    document.getElementById('pBar').style.width = s.progress + '%';
+    var sub = document.getElementById('pSub'); if (sub) sub.textContent = s.done + ' / ' + s.total + ' 활동 완료' + (s.answered ? ' · 퀴즈 ' + s.score + '점' : '');
+    document.querySelectorAll('.nav-item').forEach(function (el) { var st = pageState(el.dataset.pid), n = el.querySelector('.nst'); n.className = 'nst ' + st; n.textContent = st === 'done' ? '✓' : st === 'part' ? '•' : ''; });
+  }
+  function pill() { var e = document.getElementById('savePill'); if (!e) return; var d = new Date(S.updated); e.textContent = '✔ 자동 저장됨 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); e.classList.add('flash'); setTimeout(function () { e.classList.remove('flash'); }, 600); }
+  function toast(m) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.classList.add('show'); }, 10); setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 2600); }
+
+  function render(pid) {
+    var pg = pageById(pid) || PAGES[0]; pid = pg.id;
+    tick(); cur = pid; S.last = pid;
+    if (S.visited.indexOf(pid) < 0) S.visited.push(pid);
+    var idx = PAGES.indexOf(pg), m = document.getElementById('main');
+    var prev = idx > 0 ? '<button class="btn btn-o" data-go="' + PAGES[idx - 1].id + '">← 이전</button>' : '<div></div>';
+    var next = idx < PAGES.length - 1 ? '<button class="btn btn-p" data-go="' + PAGES[idx + 1].id + '">' + (PAGES[idx + 1].id === 'report' ? '📊 학습 리포트 보기 →' : '다음 →') + '</button>' : '<a class="btn btn-p" href="../index.html">전체 차시로 →</a>';
+    m.innerHTML = '<div class="pg-hd"><div class="pg-top"><div class="pg-crumb">' + D.title + (pg.cat ? ' &gt; ' + pg.cat : '') + '</div><span class="save-pill" id="savePill">✔ 자동 저장</span></div><h2 class="pg-title">' + pg.icon + ' ' + pg.title + '</h2></div>' +
+      pg.blocks.map(function (b, bi) { return rBlock(b, pid, bi); }).join('') + '<div class="pg-nav">' + prev + next + '</div>';
+    if (location.hash !== '#' + pid) history.replaceState(null, '', '#' + pid);
+    document.querySelectorAll('.nav-item').forEach(function (el) { el.classList.toggle('active', el.dataset.pid === pid); });
+    save(true); refreshProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector('.sidebar').classList.remove('open');
+  }
+  window.go = render;
+
+  /* ---------- 이벤트(위임) ---------- */
+  document.addEventListener('input', function (e) {
+    var k = e.target.dataset && e.target.dataset.k; if (!k) return;
+    S.inputs[k] = e.target.value; save();
+    var g = e.target.closest('.input-group'); if (g) g.classList.toggle('filled', !!e.target.value.trim());
+    clearTimeout(refreshProgress._t); refreshProgress._t = setTimeout(refreshProgress, 400);
+  });
+  document.addEventListener('click', function (e) {
+    var vl = e.target.closest('[data-vlink]'); if (vl) { markVideo(vl.dataset.vlink); return; }
+    var t = e.target.closest('[data-go],[data-pid],[data-qk],[data-ak],[data-sk],[data-tid],[data-cid],[data-act],[data-vid],.flip-card');
+    if (!t) return;
+    if (t.dataset.vid) { playVideo(t, t.dataset.vid); return; }
+    if (t.dataset.go) { e.preventDefault(); render(t.dataset.go); return; }
+    if (t.dataset.pid) { render(t.dataset.pid); return; }
+    if (t.dataset.qk) { if (!t.classList.contains('disabled')) answerQuiz(t.dataset.qk, +t.dataset.qi); return; }
+    if (t.dataset.ak) { S.assess[t.dataset.ak] = +t.dataset.ri; t.parentElement.querySelectorAll('.r-btn').forEach(function (b) { b.classList.toggle('sel', b === t); }); save(); refreshProgress(); return; }
+    if (t.dataset.sk) { S.steps[t.dataset.sk] = !S.steps[t.dataset.sk]; t.classList.toggle('done', !!S.steps[t.dataset.sk]); save(); return; }
+    if (t.dataset.tid) { var p = t.parentElement; p.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === t); }); document.querySelectorAll('[id^="' + t.dataset.tid + '-"]').forEach(function (x) { x.classList.toggle('active', x.id === t.dataset.tid + '-' + t.dataset.ti); }); return; }
+    if (t.dataset.cid) { var c = document.getElementById(t.dataset.cid).textContent; (navigator.clipboard ? navigator.clipboard.writeText(c) : Promise.reject()).then(function () { t.textContent = '복사 완료 ✔'; }, function () { t.textContent = '직접 선택해 복사하세요'; }); setTimeout(function () { t.textContent = '코드 복사'; }, 2000); return; }
+    if (t.classList.contains('flip-card')) { t.classList.toggle('flipped'); return; }
+    var a = t.dataset.act;
+    if (a === 'profile') openProfile();
+    if (a === 'export') exportRecord();
+    if (a === 'submit') submitRecord(t);
+    if (a === 'print') window.print();
+    if (a === 'retry') { var first = null; QUIZ.forEach(function (q) { var st = S.quiz[q.key]; if (st && st.done && !st.first) { st.retried = (st.retried || 0) + 1; delete S.quiz[q.key]; if (!first) first = q.pid; } }); save(true); toast('틀린 문제를 다시 풀 수 있어요.'); if (first) render(first); }
+    if (a === 'reset') { if (confirm('이 차시의 모든 학습 기록(답변·퀴즈·진단)을 지울까요? 되돌릴 수 없습니다.')) { S = fresh(); save(true); buildNav(); render('p1'); } }
+  });
+
+  /* ---------- 시작 ---------- */
+  var side = document.querySelector('.sidebar-hd');
+  side.insertAdjacentHTML('afterbegin', '<a class="home-link" href="../index.html">← 전체 차시</a>');
+  document.querySelector('.sidebar-ft').insertAdjacentHTML('beforeend', '<div class="prog-sub" id="pSub"></div><div class="who" id="who"></div>');
+  buildNav(); renderWho();
+  var start = (location.hash || '').slice(1);
+  render(pageById(start) ? start : (S.last && pageById(S.last) ? S.last : 'p1'));
+  if (!P) setTimeout(function () { openProfile(); }, 400);
+})();
+
+</script>
+</body>
+</html>

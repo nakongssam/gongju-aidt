@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIDT — 삼각함수로 기후 데이터 모델링하기</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
+:root {
+  --bg:#F5F4F0;--surface:#fff;--surface-alt:#FAFAF7;--border:#E5E3DD;--border-lt:#EEECE6;
+  --txt:#1A1A1A;--txt2:#555;--txt3:#999;
+  --accent:#10b981;--accent-lt:#d1fae5;--accent-dk:#059669;
+  --blue:#3b82f6;--blue-lt:#eff6ff;--green:#10b981;--green-lt:#d1fae5;
+  --purple:#8b5cf6;--purple-lt:#ede9fe;--red:#ef4444;--red-lt:#fee2e2;
+  --radius:12px;--radius-sm:8px;--transition:.25s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--txt);line-height:1.75;font-size:15px;-webkit-font-smoothing:antialiased}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:290px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+.sidebar-hd{padding:20px 16px 14px;border-bottom:1px solid var(--border-lt)}
+.sidebar-hd h1{font-size:11px;font-weight:800;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+.sidebar-hd .topic{font-size:16px;font-weight:700;line-height:1.4}
+.sidebar-nav{flex:1;padding:8px 6px;overflow-y:auto}
+
+/* Navigation Categories & Items */
+.nav-cat{font-size:11px;font-weight:800;color:var(--txt3);margin:20px 12px 6px;padding-bottom:4px;border-bottom:1px solid var(--border-lt);letter-spacing:1px;}
+.nav-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;font-size:13px;color:var(--txt2);cursor:pointer;border-radius:var(--radius-sm);transition:var(--transition);line-height:1.4;word-break:keep-all;}
+.nav-item:hover{background:var(--surface-alt);color:var(--txt)}
+.nav-item.active{background:var(--accent-lt);color:var(--accent-dk);font-weight:700}
+.nav-item .icon{font-size:15px;flex-shrink:0;width:20px;text-align:center;margin-top:1px;}
+
+.sidebar-ft{padding:10px 16px;border-top:1px solid var(--border-lt)}
+.prog-label{font-size:11px;font-weight:600;color:var(--txt3);margin-bottom:4px}
+.prog-bg{height:4px;background:var(--border-lt);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+.content{flex:1;margin-left:290px;padding:28px 44px 80px;max-width:860px}
+.mobile-tog{display:none;position:fixed;top:10px;left:10px;z-index:200;width:38px;height:38px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);transition:transform .3s}
+  .sidebar.open{transform:translateX(0)}
+  .content{margin-left:0;padding:18px 14px 60px}
+  .mobile-tog{display:flex!important}
+}
+
+/* Page header */
+.pg-hd{margin-bottom:28px}
+.pg-crumb{font-size:12px;color:var(--txt3);margin-bottom:6px}
+.pg-title{font-size:26px;font-weight:800;line-height:1.3}
+
+/* Blocks */
+.blk{margin-bottom:22px}
+.blk-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px}
+.blk h3{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.blk h4{font-size:14px;font-weight:700;margin:16px 0 8px}
+.blk p,.blk li{font-size:14px;line-height:1.8;color:var(--txt)}
+.blk p+p{margin-top:10px}
+.blk ul{padding-left:20px;margin:8px 0}
+.blk ul li{margin-bottom:4px}
+
+/* Callout */
+.callout{border-left:4px solid var(--accent);background:var(--accent-lt);padding:14px 18px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:18px}
+.callout.blue{background:var(--blue-lt);border-color:var(--blue)}
+.callout.green{background:var(--green-lt);border-color:var(--green)}
+.callout.purple{background:var(--purple-lt);border-color:var(--purple)}
+.callout .c-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.callout .c-body{font-size:14px;line-height:1.7;color:var(--txt2)}
+
+/* Objectives */
+.obj-list{list-style:none;padding:0}
+.obj-list li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;font-size:14px}
+.obj-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+
+/* Input */
+.input-group{margin-bottom:14px}
+.input-group label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+.input-group textarea,.input-group input[type=text]{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;font-family:inherit;line-height:1.6;resize:vertical;background:var(--bg);transition:var(--transition)}
+.input-group textarea:focus,.input-group input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Steps */
+.steps{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
+.steps .s-hd{padding:14px 18px;border-bottom:1px solid var(--border-lt);font-size:14px;font-weight:700}
+.step{padding:14px 18px;border-bottom:1px solid var(--border-lt);display:flex;gap:12px;cursor:pointer;transition:var(--transition)}
+.step:last-child{border-bottom:none}
+.step:hover{background:var(--surface-alt)}
+.step .s-n{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--txt3);flex-shrink:0;transition:var(--transition)}
+.step.done .s-n{background:var(--green);border-color:var(--green);color:#fff}
+.step .s-c h4{font-size:14px;font-weight:600;margin:0 0 3px}
+.step .s-c p{font-size:13px;color:var(--txt2);margin:0}
+
+/* Tabs */
+.tabs-nav{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:0}
+.tab-btn{padding:9px 18px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt3);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:var(--transition)}
+.tab-btn:hover{color:var(--txt)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-panel{display:none;padding:16px 0;font-size:14px;line-height:1.8}
+.tab-panel.active{display:block}
+
+/* Flip Cards */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:18px}
+.flip-card{height:130px;perspective:1000px;cursor:pointer}
+.flip-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.flip-card.flipped .flip-inner{transform:rotateY(180deg)}
+.flip-front,.flip-back{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;text-align:center;padding:14px;font-size:14px}
+.flip-front{background:var(--accent-lt);border:1px solid var(--accent);font-weight:700;color:var(--accent-dk)}
+.flip-back{background:var(--surface);border:1px solid var(--border);transform:rotateY(180deg);color:var(--txt2);font-size:13px;line-height:1.5}
+
+/* Quiz */
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;gap:8px}
+.quiz-q .qn{color:var(--accent);font-weight:800}
+.quiz-opt{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px;cursor:pointer;transition:var(--transition);font-size:14px}
+.quiz-opt:hover{border-color:var(--accent);background:var(--accent-lt)}
+.quiz-opt.correct{border-color:var(--green);background:var(--green-lt)}
+.quiz-opt.wrong{border-color:var(--red);background:var(--red-lt)}
+.quiz-opt .oc{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:var(--transition)}
+.quiz-opt.correct .oc{border-color:var(--green);background:var(--green);color:#fff}
+.quiz-opt.wrong .oc{border-color:var(--red);background:var(--red);color:#fff}
+.quiz-fb{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-top:10px;display:none}
+.quiz-fb.show{display:block}
+.quiz-fb.ok{background:var(--green-lt);color:var(--green)}
+.quiz-fb.no{background:var(--red-lt);color:var(--red)}
+
+/* Prediction */
+.pred-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pred-row label{font-size:13px;font-weight:600;min-width:100px}
+.pred-row input{width:130px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;text-align:center}
+.pred-row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Assessment - Segmented Control */
+.assess-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--border-lt);flex-wrap:wrap}
+.assess-item:last-child{border-bottom:none}
+.assess-item>span{flex:1;min-width:200px;font-size:14px;line-height:1.6;color:var(--txt)}
+.rating-g{display:inline-flex;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;flex-shrink:0}
+.r-btn{padding:6px 16px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt2);background:transparent;border:none;border-radius:6px;cursor:pointer;transition:var(--transition);min-width:54px}
+.r-btn:hover{color:var(--txt)}
+.r-btn.sel{background:var(--surface);color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.r-btn:nth-child(1).sel{color:var(--green);background:var(--green-lt)}
+.r-btn:nth-child(2).sel{color:#d97706;background:#fef3c7}
+.r-btn:nth-child(3).sel{color:var(--red);background:var(--red-lt)}
+
+/* Link Card */
+.link-card{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--txt);transition:var(--transition);margin-bottom:12px}
+.link-card:hover{border-color:var(--accent);background:var(--surface-alt);transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,0.04)}
+.link-card .l-icon{font-size:24px;flex-shrink:0;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--accent-lt);border-radius:var(--radius-sm)}
+.link-card .l-info{flex:1;min-width:0}
+.link-card .l-info h4{font-size:14px;font-weight:700;margin:0 0 2px;color:var(--txt)}
+.link-card .l-info p{font-size:13px;line-height:1.5;color:var(--txt2);margin:0}
+.link-card::after{content:"↗";font-size:14px;color:var(--txt3);flex-shrink:0;margin-left:4px}
+
+/* Btn */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:var(--transition)}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:var(--accent-dk);transform:translateY(-1px)}
+.btn-o{background:transparent;border:1px solid var(--border);color:var(--txt2)}
+.btn-o:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Page nav */
+.pg-nav{display:flex;justify-content:space-between;margin-top:44px;padding-top:20px;border-top:1px solid var(--border-lt)}
+.pg-nav .btn{min-width:130px;justify-content:center}
+
+/* Animation */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.content>*{animation:fadeIn .35s ease both}
+
+
+/* ===== AIDT 추가 스타일 ===== */
+.home-link{display:inline-block;font-size:12px;color:var(--txt3);text-decoration:none;margin-bottom:8px}
+.home-link:hover{color:var(--accent)}
+.nav-item{display:flex;align-items:center}
+.nst{width:18px;text-align:center;font-size:12px;font-weight:800;color:var(--txt3)}
+.nst.done{color:var(--accent)}
+.nst.part{color:#f59e0b;font-size:16px}
+.nav-report{margin-top:2px}
+.prog-sub{font-size:11px;color:var(--txt3);margin-top:6px}
+.who{font-size:12px;color:var(--txt2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border-lt)}
+.who a{color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:4px}
+.pg-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.save-pill{font-size:11px;color:var(--accent-dk);background:var(--accent-lt);padding:3px 10px;border-radius:12px;white-space:nowrap;transition:transform .2s}
+.save-pill.flash{transform:scale(1.06)}
+.input-group.filled label::after{content:" ✓";color:var(--accent);font-weight:800}
+.auto-note{font-size:12px;color:var(--txt3);margin-top:8px}
+/* 퀴즈 */
+.quiz-q{align-items:flex-start}
+.q-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;height:fit-content}
+.q-badge.ok{background:var(--green-lt);color:var(--accent-dk)}
+.q-badge.no{background:var(--red-lt);color:var(--red)}
+.q-badge.try{background:#fef3c7;color:#b45309}
+.quiz-opt .oc{font-size:11px;font-weight:700;color:var(--txt3)}
+.quiz-opt:not(.disabled):hover{border-color:var(--accent);background:var(--surface-alt)}
+.quiz-opt.disabled{cursor:default}
+.quiz-opt.wrong .oc,.quiz-opt.correct .oc{color:#fff}
+.concept-link{display:inline-block;color:var(--blue);cursor:pointer;font-size:13px;font-weight:600;text-decoration:none;margin-top:8px}
+.concept-link:hover{text-decoration:underline}
+/* 코드 */
+.code-blk{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:18px}
+.code-hd{background:#2d2d2d;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;color:#e0e0e0;font-size:13px;font-weight:600;font-family:monospace}
+.code-copy{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#e0e0e0;border-radius:4px;padding:5px 10px;font-size:12px;cursor:pointer}
+.code-bd{background:#1e1e1e;padding:16px;overflow-x:auto}
+.code-bd pre{margin:0;color:#d4d4d4;font-family:Consolas,Monaco,monospace;font-size:14px;line-height:1.6}
+.link-card.wokwi{background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-color:#ffb74d}
+/* 리포트 */
+.rep-who{font-size:16px;font-weight:700}
+.rep-meta{font-size:13px;color:var(--txt3);margin-bottom:14px}
+.rep-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.rep-stat{background:var(--surface-alt);border:1px solid var(--border-lt);border-radius:var(--radius-sm);padding:12px}
+.rep-stat .l{font-size:12px;color:var(--txt3)}
+.rep-stat .v{font-size:24px;font-weight:800;color:var(--accent-dk);line-height:1.3}
+.rep-stat .s{font-size:11px;color:var(--txt2)}
+.rep-msg{font-weight:600;padding:10px 14px;border-radius:var(--radius-sm);background:var(--blue-lt)}
+.rep-msg.lv-상{background:var(--green-lt)}
+.rep-msg.lv-하{background:#fef3c7}
+.rec-list{margin:10px 0 12px 20px}
+.rec-list li{margin:4px 0}
+.rec-list .concept-link{margin-top:0}
+.rep-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.rep-tbl th,.rep-tbl td{border-bottom:1px solid var(--border-lt);padding:7px 6px;text-align:left;vertical-align:top}
+.rep-tbl th{color:var(--txt3);font-weight:600;font-size:12px}
+.rep-tbl .concept-link{margin:0;font-weight:500}
+.r-ok{color:var(--accent-dk);font-weight:700}.r-mid{color:#d97706;font-weight:700}.r-no{color:var(--red);font-weight:700}
+.muted{color:var(--txt3)}.small{font-size:12px}
+details.blk-card summary{cursor:pointer}
+.ans-item{padding:10px 0;border-bottom:1px solid var(--border-lt)}
+.ans-q{font-size:12px;color:var(--txt3);margin-bottom:3px}
+.ans-a{font-size:14px}
+.rep-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* 모달·토스트 */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:var(--radius);padding:22px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:4px}
+.pf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}
+.pf-grid label{font-size:12px;color:var(--txt2);display:flex;flex-direction:column;gap:4px}
+.pf-grid label:first-child,.pf-grid label.full{grid-column:1/-1}
+.pf-grid input{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px}
+.modal-btns{display:flex;justify-content:flex-end;gap:8px}
+.modal-btns .btn{min-width:0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:#1f2937;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.3s;z-index:600}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:900px){
+  .content{padding-top:62px!important}
+  .rep-stats{grid-template-columns:1fr 1fr}
+}
+@media print{
+  .sidebar,.mobile-tog,.pg-nav,.rep-actions,.save-pill{display:none!important}
+  .content{margin-left:0!important;max-width:none!important;padding:0!important}
+  body{background:#fff}
+  details{display:block}details>*{display:block}
+}
+.rep-stat .v small{font-size:12px;font-weight:600;color:var(--txt3);margin-left:3px}
+/* 영상 */
+.vid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.vid-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.vid-card.seen{border-color:var(--accent)}
+.vid-thumb{position:relative;aspect-ratio:16/9;background:#111 center/cover no-repeat;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.vid-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid-play{width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;padding-left:4px;transition:.2s}
+.vid-thumb:hover .vid-play{background:#e11d48;transform:scale(1.08)}
+.vid-cap{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px}
+.vid-cap a{margin-left:auto;font-size:12px;color:var(--txt3);text-decoration:none}
+.vid-cap a:hover{color:var(--accent)}
+.vid-seen{display:none;font-size:11px;font-weight:700;color:var(--accent-dk);background:var(--accent-lt);padding:1px 8px;border-radius:10px}
+.vid-card.seen .vid-seen{display:inline}
+.submit-box{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border:2px solid var(--accent)!important;background:var(--accent-lt)!important}
+.submit-box.done{border-color:var(--border)!important;background:var(--surface)!important}
+.submit-box .btn:disabled{opacity:.6;cursor:wait}
+@media(max-width:900px){.vid-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="mobile-tog" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</div>
+<div class="app">
+<aside class="sidebar">
+  <div class="sidebar-hd">
+    <h1>AIDT 일반고 수학 · Ⅱ-6</h1>
+    <div class="topic">주기성으로 예측하는 공주의 사계절<br>삼각함수로 기후 데이터 모델링하기</div>
+  </div>
+  <nav class="sidebar-nav" id="nav"></nav>
+  <div class="sidebar-ft">
+    <div class="prog-label">진행률 <span id="pTxt">0%</span></div>
+    <div class="prog-bg"><div class="prog-fill" id="pBar" style="width:0%"></div></div>
+  </div>
+</aside>
+<main class="content" id="main"></main>
+</div>
+<script src="../aidt-config.js"></script>
+<script>
+const META = {"id": "math-II-6", "subject": "수학", "code": "Ⅱ-6", "module": "교과 융합 모듈", "n": 6, "roman": "II", "videos": ["fuplCtZ_WAU", "VsYGVFX_MHc", "74wQsOrVfIQ"]};
+const D = {"title": "삼각함수로 기후 데이터 모델링하기", "pages": [{"id": "p1", "cat": "도입", "icon": "🎯", "title": "학습목표", "blocks": [{"t": "html", "v": "\n          <div class=\"blk\" style=\"text-align:center;padding:20px 0\">\n            <div style=\"font-size:12px;color:var(--accent);font-weight:700;letter-spacing:2px;margin-bottom:6px\">수학 × 정보 융합 · 기후 데이터 모델링<\/div>\n            <h2 style=\"font-size:28px;font-weight:900;margin-bottom:8px\">주기성으로 예측하는 공주의 사계절,<br>삼각함수로 기후 데이터 모델링하기<\/h2>\n            <div style=\"display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px\">\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--accent-lt);color:var(--accent-dk)\">수학(삼각함수)<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--blue-lt);color:var(--blue)\">정보(Python)<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--purple-lt);color:var(--purple)\">데이터 시각화<\/span>\n            <\/div>\n          <\/div>\n        "}, {"t": "objectives", "items": ["삼각함수의 성질을 이해하고, 실제 기후 데이터에 적용할 수 있다.", "공주시의 월별 기온 데이터를 수집하고, 평균값을 이용하여 기후의 주기성을 나타내는 삼각함수로 모델링할 수 있다.", "파이썬을 활용하여 기온 예측 프로그램을 구현하고, 실제 데이터와의 오차를 계산하여 모델의 정확도를 평가할 수 있다.", "데이터 분석 결과를 바탕으로 지역의 기후 변화 패턴을 해석하고 예측할 수 있다."]}]}, {"id": "p2", "cat": "도입", "icon": "💭", "title": "생각해요", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>계절의 순환, 수학으로 예측할 수 있을까?<\/h3>\n          <p>봄, 여름, 가을, 겨울. 공주의 사계절은 매년 어김없이 찾아온다. 물론 매년 같은 날의 기온이 항상 똑같지는 않다. 어떤 해는 유난히 덥고, 어떤 해는 더 춥기도 하다. 하지만 추운 겨울이 지나면 따뜻한 봄이 오고, 무더운 여름 뒤에는 시원한 가을이 온다는 거대한 흐름만은 변하지 않고 반복된다.<\/p>\n          <p>그렇다면 불규칙해 보이는 날씨 변화 속에서, 반복되는 규칙만을 뽑아내어 수학 함수로 표현할 수 있을까? 만약 이것이 가능하다면, 우리는 복잡한 날씨 변화의 핵심 패턴을 파악하고 대략적인 미래의 기온 흐름을 예측해 볼 수 있을 것이다.<\/p>\n          <p>수학에는 이런 주기적인 흐름을 설명하는 강력한 도구가 있다. 바로 <strong>'삼각함수'<\/strong>이다. 삼각함수는 파동처럼 오르내리는 자연 현상을 단순화하여 모델링하는 데 가장 적합한 도구다.<\/p>\n        <\/div>"}, {"t": "input", "label": "다항함수와 비교하여 삼각함수가 계절을 설명하기에 더 적합한 이유가 무엇일지 모둠원들과 자유롭게 이야기해 보자.", "ph": "예: 다항함수는 한 방향으로 계속 증가/감소하지만, 삼각함수는 규칙적으로 반복되므로 계절 패턴에 적합하다.", "rows": 3}]}, {"id": "p3", "cat": "알아봐요", "icon": "📖", "title": "1. 반복되는 세상의 언어: 삼각함수", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 반복되는 세상의 언어: 삼각함수<\/h3>\n          <p>자연 세계에는 규칙적으로 반복되는 현상들이 많다. 해가 뜨고 지는 하루의 주기, 달이 차고 기우는 한달의 주기, 그리고 계절이 바뀌는 1년의 주기. 이런 주기적인 변화를 수학적으로 가장 잘 표현하는 것이 바로 삼각함수다.<\/p>\n          <p>삼각함수 중 가장 기본이 되는 것은 사인 함수(y=sin x)와 코사인 함수(y=cos x)이다. 이 함수들은 x값이 변함에 따라 -1에서 1 사이를 규칙적으로 오르내리며, 이 패턴이 끊임없이 반복된다.<\/p>\n        <\/div>"}, {"t": "tabs", "tabs": [{"label": "기본 성질", "content": "<p><strong>▷ 기본 삼각함수의 성질<\/strong><\/p><p>• y = sin x → 주기: 2π, 최댓값: 1, 최솟값: -1<\/p><p>• y = cos x → 주기: 2π, 최댓값: 1, 최솟값: -1<\/p>"}, {"label": "변형 삼각함수", "content": "<p><strong>▷ 실제 기온 데이터를 모델링하는 삼각함수<\/strong><\/p><p>공주의 기온은 30도 이상 오르기도 하고, 사계절 주기도 1년(12개월)마다 반복된다. 따라서, 삼각함수의 기본 꼴인 y=cos x를 실제 기온 데이터와 근사하게 다음 식처럼 '변형'하는 방법이 있다.<\/p><p style=\"text-align:center;font-size:18px;font-weight:700;margin:16px 0\">y = a · cos(b(x - c)) + d<\/p>"}, {"label": "매개변수 의미", "content": "<p><strong>▷ 월별 평균기온 데이터 주기 함수식의 매개변수<\/strong><\/p><p>• <strong>a<\/strong> (기온 변화폭의 절반): (최고기온 - 최저기온) / 2<\/p><p>• <strong>b<\/strong> (주기): 기온은 12개월마다 반복 → b = 2π/12 = π/6<\/p><p>• <strong>c<\/strong> (x축 평행이동): 가장 더운 달 (예: 8월이면 c = 8)<\/p><p>• <strong>d<\/strong> (평균 기온): 1년 평균 기온<\/p>"}]}, {"t": "callout", "variant": "blue", "title": "💡 코사인 함수로 모델링하는 이유", "body": "y=cos x 함수는 x=0일 때 최댓값(1)을 가진다. 월을 x값이라 정의할 때, 8월(x=8)에서 기온이 최고가 되도록 기온의 범위를 조절하기가 더 직관적이기 때문이다.<br>따라서 공주시 기온 모델링 함수는 다음과 같은 형태가 된다:<br><strong style='font-size:16px'>y = a·cos(π/6·(x - 8)) + d<\/strong>"}]}, {"id": "p4", "cat": "알아봐요", "icon": "📖", "title": "2. 삼각함수가 자연을 설명하는 이유", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 삼각함수가 자연을 설명하는 이유<\/h3>\n          <p>삼각함수는 단순히 수학 시간에 배우는 추상적인 개념이 아니다. 자연의 가장 기본적인 운동인 원운동과 진동을 설명하는 언어다.<\/p>\n          <p>지구는 태양 주위를 1년에 한 바퀴 돈다. 이 공전 궤도가 원에 가깝기 때문에, 지구가 받는 태양 에너지의 양도 삼각함수 형태로 변한다. 또한 지구의 자전축이 기울어져 있어서 계절에 따라 태양 고도가 달라지는데, 이 변화 역시 삼각함수로 표현된다.<\/p>\n          <p>결국 공주시의 기온이 1년 주기로 반복되는 것은 지구의 공전과 자전이라는 물리적 운동의 결과이고, 이 운동을 수학적으로 가장 정확하게 표현하는 것이 바로 삼각함수인 것이다.<\/p>\n        <\/div>"}, {"t": "callout", "variant": "green", "title": "🌍 현대 기상 예측과 삼각함수", "body": "현대 기상청의 기후 예측 모델도 이런 삼각함수 원리를 기반으로, 수십 가지 변수를 동시에 고려하는 복잡한 방정식으로 발전했다. 우리가 오늘 만드는 간단한 모델은, 전문 기상학자들이 사용하는 슈퍼컴퓨터 기반 예측 시스템의 가장 기본적인 원리와 같다."}, {"t": "cards", "items": [{"front": "ChatGPT", "back": "Python 코드 작성 시 오류 해결 및 디버깅 지원, 데이터의 의미를 해석하는 보조 도구"}, {"front": "Excel", "back": "기상청에서 수집한 공주시 월별 평균 기온 데이터를 표 형태로 정리하고 기본 차트로 경향성 탐색"}, {"front": "Desmos", "back": "삼각함수 식의 변수를 실시간으로 조작하며 그래프 모양 변화를 탐색하는 온라인 그래프 도구"}, {"front": "Google Colab", "back": "Python으로 예측값을 구하고, 실제 데이터와의 오차(Error)를 계산하여 수치적으로 검증"}]}]}, {"id": "p5", "cat": "활동해요", "icon": "✏️", "title": "1. 공주의 기온, 얼마나 규칙적일까?", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 사계절의 비밀, 데이터로 찾아내기<\/h3>\n          <p>우리는 경험적으로 봄, 여름, 가을, 겨울이 반복된다는 사실을 알고 있다. 하지만 기온이 과거의 패턴대로 흘러갈지, 아니면 새로운 이상 기후가 발생했는지 경험만으로 정확히 답하기는 어렵다. 이번 활동에서는 우리의 감각 대신 실제 데이터를 통해 계절의 변화를 분석해 본다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동1] 공주의 기온, 얼마나 규칙적일까?<\/h4><p>기상자료개방포털에 접속하여 공주시의 최근 10년간 월별 평균 기온 데이터를 수집해 보자.<\/p><\/div>"}, {"t": "callout", "variant": "blue", "title": "📊 필요한 데이터", "body": "• 지역: 충청남도 공주시<br>• 기간: 2015년 1월 ~ 2024년 12월<br>• 항목: 월평균기온"}, {"t": "link", "url": "https://data.kma.go.kr/", "icon": "🌦️", "title": "기상청 기상자료개방포털", "desc": "공주시 월별 평균 기온 데이터를 수집할 수 있습니다"}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동2] 기온 그래프 그리기<\/h4><p>Excel의 차트 기능을 이용해 x축을 월, y축을 기온으로 하는 막대 그래프를 그려보자.<\/p><\/div>"}, {"t": "input", "label": "Q. 일반적으로 가장 추운 달과 가장 더운 달은 언제인가?", "ph": "예: 가장 추운 달은 1월, 가장 더운 달은 8월이다.", "rows": 1}, {"t": "input", "label": "Q. 연도별로 같은 달 평균기온을 비교했을 때, 기온 차이가 심한 달은 언제인가?", "ph": "예: 1월과 2월의 기온 차이가 크다.", "rows": 1}, {"t": "input", "label": "Q. 매년 비슷한 패턴이 반복되는가?", "ph": "예: 전체적으로 여름에 높고 겨울에 낮은 패턴이 반복된다.", "rows": 1}]}, {"id": "p6", "cat": "활동해요", "icon": "✏️", "title": "2. 기온의 파동, 삼각함수로 표현하기", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 기온의 파동, 삼각함수로 표현하기<\/h3>\n          <p>10년 동안의 월평균기온 데이터는 매년 조금씩 다르다는 것을 이전 활동에서 확인할 수 있었다. 우리는 이 10년 동안의 데이터를 모두 종합하여 공주시의 기후 대푯값을 도출해 내야 한다. 각 해의 불규칙한 차이를 평균으로 다듬어 공주의 가장 보편적인 사계절 패턴을 확정 짓는 방법을 생각해 볼 수 있다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동1] 공주시의 표준 월평균기온 만들어보기<\/h4><\/div>"}, {"t": "input", "label": "만약 작년 데이터만 사용하여 예측 모델을 만든다면, 그 모델은 10년 뒤의 날씨도 잘 맞힐 수 있을까? 10년치 데이터를 모두 사용하여 '공주시의 표준 1년'을 만들어야 하는 이유는 무엇일지 모둠별로 토의해보자.", "ph": "예: 한 해의 데이터는 이상치가 있을 수 있으므로, 여러 해의 평균을 사용해야 일반적인 패턴을 파악할 수 있다.", "rows": 3}, {"t": "html", "v": "<div class=\"blk\"><p>엑셀을 사용하여 지난 10년간 각 월별 평균 기온을 계산하고, 다음 삼각함수 모델의 변수를 구해보자.<\/p><p style=\"text-align:center;font-size:18px;font-weight:700;margin:12px 0\">y = a · cos(b(x - c)) + d<\/p><\/div>"}, {"t": "prediction", "items": [{"label": "연평균 기온 (d)", "ph": "℃"}, {"label": "변화폭의 절반 (a)", "ph": "℃"}, {"label": "가장 더운 달 (c)", "ph": "월"}, {"label": "주기 (b)", "ph": "π/6"}, {"label": "모델식 y =", "ph": "예: 13.5·cos(π/6·(x-8))+12"}]}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동2] 눈으로 확인하는 나의 수식<\/h4><p>수학공학 도구 Desmos에 접속하여, 우리가 구한 10년 평균값 중 핵심적인 4개 점(1월, 4월, 7월, 10월)만 좌표를 입력해보자. 계산한 삼각함수 모델 식을 입력창에 넣어보자.<\/p><\/div>"}, {"t": "callout", "variant": "purple", "title": "💡 Desmos 입력 팁", "body": "• 'π'는 키보드로 영어 pi라고 치면 자동으로 π 기호로 바뀝니다.<br>• 곱셈 기호를 생략하지 마세요! a * cos 처럼 곱셈 기호(*)를 넣어주세요.<br>• 예시: y = 13.5 * cos( (pi/6) * (x - 8) ) + 12"}, {"t": "link", "url": "https://www.desmos.com/", "icon": "📐", "title": "Desmos(데스모스)", "desc": "온라인 그래프 계산기로 삼각함수를 시각화할 수 있습니다"}, {"t": "input", "label": "완성한 모델식 y =", "ph": "예: 13.5 * cos( (pi/6) * (x - 8) ) + 12", "rows": 1}]}, {"id": "p7", "cat": "활동해요", "icon": "💻", "title": "3. 코드로 완성하는 나만의 기후 예측 모델", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 코드로 완성하는 나만의 기후 예측 모델<\/h3>\n          <p>실제 기상청 슈퍼컴퓨터나 데이터 과학자들은 어떻게 미래를 예측할까? 그들도 우리처럼 데이터를 수집하고, 수학 모델을 만들고, 프로그래밍을 통해 시뮬레이션하는 과정을 거친다.<\/p>\n          <p>앞서 설계한 삼각함수 모델을 파이썬 코드로 구현하여, 공주시의 기온 변화를 시각화하고 분석하는 나만의 프로그램을 필요한 경우 ChatGPT와 연계하여 완성해 보자.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동1] Google Colab에서 데이터 불러오기<\/h4><p>다음 코드를 Google Colab에 작성해보자.<\/p><\/div>"}, {"t": "code", "lang": "Python", "code": "# 필요한 라이브러리 불러오기\nimport pandas as pd\nimport numpy as np\nimport matplotlib.pyplot as plt\nimport matplotlib.font_manager as fm\n\n# 한글 폰트 설정\nplt.rcParams['font.family'] = 'Malgun Gothic'\nplt.rcParams['axes.unicode_minus'] = False\n\n# 데이터 불러오기\n# (제공된 공주시 기온 CSV 파일 업로드)\ndata = pd.read_csv('gongju_temperature.csv', encoding='cp949')\nprint(data.head())"}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동2] 내가 만든 삼각함수 모델의 월별 예측값 구하기<\/h4><p>다음 코드를 Google Colab에 작성해보자. m, a, d를 자신이 구한 모델 식의 숫자로 수정한다.<\/p><\/div>"}, {"t": "code", "lang": "Python", "code": "# 삼각함수 모델 정의\ndef temperature_model(month, a, d):\n    return a * np.cos(np.pi/6 * (month - 8)) + d\n\n# 1월부터 12월까지 예측값 계산\nmonths = np.arange(1, 13)\npredicted_temp = [temperature_model(m, a, d) for m in months]\n\nprint(\"\\n월별 예측 기온:\")\nfor m, t in zip(months, predicted_temp):\n    print(f\"{m}월: {t:.1f}℃\")"}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동3] 실제 데이터와 모델 비교하기<\/h4><p>실제 2024년도 월평균기온과 내가 만든 모델 간의 오차를 구해보기 위해 Google Colab에 다음 코드를 작성해 보자.<\/p><\/div>"}, {"t": "code", "lang": "Python", "code": "# 1. 비교할 실제 데이터(2024년) 가져오기\nactual_data = data[data['연도'] == 2024]\nreal_temp = actual_data['평균기온'].values\n\n# 2. 그래프 그리기\nplt.figure(figsize=(10, 5))\nplt.plot(months, real_temp, label='실제 기온(2024)')\nplt.plot(months, predicted_temp, label='예측 모델')\nplt.title('실제 기온 vs 예측 모델 비교')\nplt.legend()\nplt.grid()\nplt.show()\n\n# 3. 오차 계산 및 분석\nerror = np.abs(real_temp - predicted_temp)\nfor m, r, p, e in zip(months, real_temp, predicted_temp, error):\n    print(f\"{m:2d}월 | {r:5.1f} | {p:5.1f} | {e:4.1f}℃\")\n\n# 4. 평균 오차 계산하기\nprint(f\"평균 오차: {np.mean(error):.1f}℃\")"}, {"t": "input", "label": "Q. 우리 모델의 예측이 가장 정확한 달은 언제인가?", "ph": "예: 4월과 10월의 오차가 가장 작았다.", "rows": 2}, {"t": "input", "label": "Q. 월별 오차들의 평균인 평균 오차를 활용하면 장점은 무엇이 있을까?", "ph": "예: 모델의 전체적인 정확도를 하나의 숫자로 파악할 수 있다.", "rows": 2}]}, {"id": "p8", "cat": "활동해요", "icon": "💡", "title": "4. 미래를 위한 시뮬레이션", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 미래를 위한 시뮬레이션<\/h3>\n          <p>우리가 만든 모델은 '과거'의 기록이다. 하지만 수학의 힘은 '미래'를 가정해 볼 수 있다는 데 있다. 과학자들의 경고대로 지구온난화가 가속화된다면 공주의 사계절은 어떻게 변할까? 우리 모델의 변수를 조작하여 미래의 기후 시나리오를 작성해 보자.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동1] 뜨거워진 지구<\/h4><p>기후학자들은 2050년까지 지구 평균 기온이 지금보다 약 2℃ 상승할 수 있다고 경고하고 있다. 이 시나리오를 우리 모델에 적용해 보자.<\/p><\/div>"}, {"t": "prediction", "items": [{"label": "수정할 변수", "ph": "예: d"}, {"label": "수정된 값", "ph": "예: d + 2"}, {"label": "2050년 예측 식 y =", "ph": "예: 13.5·cos(π/6·(x-8))+14"}, {"label": "기존 8월 기온", "ph": "℃"}, {"label": "2050년 8월 기온", "ph": "℃"}]}, {"t": "input", "label": "평균은 겨우 2도 올랐지만, 한여름의 체감 더위는 어떻게 달라질까?", "ph": "예: 최고기온이 2℃ 올라가면 열대야 일수가 크게 증가하고 폭염 위험이 높아진다.", "rows": 2}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동2] 날뛰는 날씨<\/h4><p>기후 변화는 단순히 따뜻해지는 것뿐만 아니라, 여름은 더 펄펄 끓고, 겨울은 기습 한파가 몰아치는 양극화를 가져온다. 기온의 오르내림 폭이 지금보다 20% 더 심해진다고 가정해 보자.<\/p><\/div>"}, {"t": "prediction", "items": [{"label": "수정할 변수", "ph": "예: a"}, {"label": "수정된 값", "ph": "예: a × 1.2"}, {"label": "양극화 예측 식 y =", "ph": "예: 16.2·cos(π/6·(x-8))+12"}, {"label": "변화된 1월 기온", "ph": "℃"}, {"label": "변화된 8월 기온", "ph": "℃"}]}, {"t": "input", "label": "▶ 예상 피해 (1월)", "ph": "예: 겨울 기온이 더 내려가면 동파 사고와 한파 피해가 증가한다.", "rows": 2}, {"t": "input", "label": "▶ 예상 피해 (8월)", "ph": "예: 여름 기온이 더 올라가면 농작물 피해와 열사병 위험이 커진다.", "rows": 2}, {"t": "html", "v": "<div class=\"blk\"><h4>▶ [활동3] 최종 정리<\/h4><p>지금까지 활동한 내용을 다음 순서를 참고하여 최종 발표해 보자.<\/p><\/div>"}, {"t": "steps", "title": "발표 제한시간 (5분)", "items": [{"title": "1. 우리가 만든 기온 예측 모델 소개", "desc": "모델식, 매개변수 값, 그래프 형태"}, {"title": "2. 모델의 정확도와 한계점", "desc": "평균 오차, 오차가 큰 달과 그 원인"}, {"title": "3. 기후변화 시나리오 분석 결과", "desc": "온난화, 양극화 시나리오별 예측값"}, {"title": "4. 기후변화에 따른 공주시 미래 방향에 대한 의견", "desc": "농업, 생활, 정책 측면의 제안"}]}]}, {"id": "p9", "cat": "정리", "icon": "✅", "title": "스스로 진단하기", "blocks": [{"t": "assessment", "title": "스스로 진단하기", "ratings": ["잘함", "보통", "미흡"], "items": ["기후 변화가 삼각함수와 연관되어 있음을 설명할 수 있다.", "삼각함수의 변수가 실제 기후와 어떻게 연결되는지 설명할 수 있다.", "파이썬 코드를 통해 모델의 예측값과 실제 값의 오차를 계산하고, 이를 줄이는 방법을 제안할 수 있다.", "모델의 변수를 조작하여 미래 기후 변화(온난화 등)를 시뮬레이션하고, 그 위험성을 예측할 수 있다."]}]}, {"id": "p10", "cat": "정리", "icon": "❓", "title": "활동퀴즈 1. 삼각함수 모델링", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 삼각함수 모델링<\/h3><\/div>"}, {"t": "quiz", "num": "01", "q": "공주시 월별 평균기온을 삼각함수 y = a · cos(b(x - c)) + d로 모델링할 때, 다음 중 a가 의미하는 것은?", "opts": ["연평균 기온", "가장 더운 달과 가장 추운 달의 기온 차이를 2로 나눈 값", "기온이 반복되는 주기", "가장 더운 달", "1년 동안의 총 기온 변화량"], "ans": 1, "ok": "정답입니다! a는 기온 변화폭의 절반, 즉 (최고기온 - 최저기온) / 2를 의미합니다.", "no": "다시 생각해 봅시다. a는 그래프의 진폭(위아래 변동 크기)을 나타냅니다."}, {"t": "quiz", "num": "02", "q": "기온 모델 T(x) = 13·cos((π/6)·(x - 7)) + 12에서, 7월(x=7)의 예상 기온은 몇 ℃인가?", "opts": ["12℃", "13℃", "19℃", "25℃", "-1℃"], "ans": 3, "ok": "정답입니다! x=7일 때 cos(0)=1이므로, T(7)=13×1+12=25℃입니다.", "no": "힌트: x=7을 대입하면 cos(0)=1이 됩니다."}, {"t": "quiz", "num": "03", "q": "삼각함수 y = a · cos(b(x - c)) + d로 기온을 모델링할 때, cos 함수의 주기를 1년(12개월)로 맞추기 위해 사용하는 b값은?", "opts": ["π/12", "π/6", "π/3", "2π", "12π"], "ans": 1, "ok": "정답입니다! 주기 = 2π/b = 12이므로, b = 2π/12 = π/6입니다.", "no": "힌트: 주기 공식은 2π/b = 12 입니다."}]}, {"id": "p11", "cat": "정리", "icon": "❓", "title": "활동퀴즈 2. 시나리오 분석", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 시나리오 분석<\/h3><\/div>"}, {"t": "quiz", "num": "04", "q": "기온 모델 y = a · cos(b(x - c)) + d에서 매개변수 c가 8에서 7로 감소하면 그래프는 어떻게 변하는가?", "opts": ["연평균 기온이 2배가 된다.", "주기가 1개월 짧아진다.", "전체 그래프가 아래로 1℃ 평행이동한다.", "가장 더운 달이 1개월 빨라진다.", "그래프가 좌우 대칭이 된다."], "ans": 3, "ok": "정답입니다! c는 x축 평행이동을 나타내므로, c가 줄어들면 가장 더운 달이 앞당겨집니다.", "no": "힌트: c는 가장 더운 시기를 결정하는 값입니다."}, {"t": "quiz", "num": "05", "q": "지구온난화로 공주시의 연평균 기온이 2℃ 상승한다면, 삼각함수 모델 T(x) = a·cos(b(x-c)) + d에서 어떤 매개변수를 어떻게 수정해야 하는가?", "opts": ["a를 2만큼 증가시킨다.", "b를 2만큼 증가시킨다.", "c를 2만큼 증가시킨다.", "d를 2만큼 증가시킨다.", "모든 매개변수를 2배로 한다."], "ans": 3, "ok": "정답입니다! d는 연평균 기온을 나타내므로, 평균 기온이 2℃ 오르면 d를 2만큼 증가시킵니다.", "no": "힌트: 연평균 기온은 그래프 전체를 위아래로 이동시키는 d에 해당합니다."}]}, {"id": "p12", "cat": "정리", "icon": "📚", "title": "읽기 자료", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>★ 삼각함수가 예측하는 세상<\/h3>\n          <p>우리가 수업에서 배운 삼각함수로 기온을 예측하는 방법은 단순해 보이지만, 실제 기상청과 농촌진흥청에서도 비슷한 원리를 사용한다. 물론 전문가들의 모델은 훨씬 복잡하다. 그들은 단순히 기온뿐만 아니라 습도, 풍속, 기압, 해수면 온도 등 수십 가지 변수를 동시에 고려한다. 하지만 그 복잡한 모델의 핵심에도 여전히 '주기성'과 '삼각함수'가 있다.<\/p>\n          <p>현대 기상청은 '수치예보 모델'이라는 시스템을 사용한다. 이 시스템은 대기를 수천 개의 작은 격자로 나누고, 각 격자에서 온도, 압력, 습도 등이 시간에 따라 어떻게 변하는지를 수학 방정식으로 계산한다. 이때 사용되는 핵심 방정식이 바로 '푸리에 급수(Fourier Series)'다. 푸리에 급수는 복잡한 파동을 여러 개의 간단한 삼각함수의 합으로 표현하는 방법이다. 우리가 수업에서 사용한 단순한 cos 함수 하나도 푸리에 급수의 가장 기본적인 형태다.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>★ 데이터로 농사짓는 시대: 스마트팜의 수학<\/h3>\n          <p>요즘 농업계에서 가장 인기 있는 직업이 '데이터 농업 전문가'다. 이들은 농학 지식과 함께 Python 프로그래밍, 통계학, 수학 모델링 능력을 갖춘 전문가다.<\/p>\n          <p>전통적으로 농사는 경험과 직관의 영역이었다. 하지만 기후변화로 과거의 경험이 더 이상 통하지 않는 시대가 왔다. 이제는 데이터와 수학이 농업의 새로운 언어가 되고 있다. 우리가 오늘 만든 간단한 기온 예측 모델은, 미래 농업을 이끌어갈 여러분에게 꼭 필요한 첫걸음이다.<\/p>\n        <\/div>"}]}, {"id": "p13", "cat": "정리", "icon": "🧭", "title": "진로 연계", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>📖 책 소개<\/h3>\n          <p><strong>『이야기로 아주 쉽게 배우는 삼각함수』<\/strong> (저자: 더글라스 다우닝) — 판타지 소설 형식의 스토리 속에 삼각함수 개념을 녹여, 각·삼각비·삼각함수와 실생활 응용을 자연스럽게 익히도록 구성한 책이다.<\/p>\n          <p><strong>『기후를 설계하다』<\/strong> (저자: 캐서린 헤이호) — 기후 위기 대응 지침서이다. 과학적 사실을 넘어, 어떻게 사람들의 마음을 움직이고 행동하게 만들 것인가에 대한 해법을 제시한다.<\/p>\n        <\/div>"}, {"t": "cards", "items": [{"front": "기후 모델 개발자", "back": "대기과학과 수학을 결합하여 장단기 기후변화를 예측하는 수치모델을 프로그래밍으로 구현하고, 슈퍼컴퓨터를 활용해 시뮬레이션을 수행하는 연구직 전문가"}, {"front": "정밀농업 데이터 분석가", "back": "드론, 위성, 센서에서 수집된 농경지 데이터를 통계적으로 분석하고, 작물별 최적 파종시기와 수확시기를 수학 모델로 계산하여 농가에 제공하는 전문가"}, {"front": "대기과학과", "back": "대기의 물리적·화학적 현상을 연구하고 일기예보와 기후예측 모델을 개발하는 전문가를 양성하는 학과"}, {"front": "응용통계학과", "back": "빅데이터 분석, 시계열 예측, 회귀모델링 등 통계 기법을 활용하여 다양한 분야의 데이터 문제를 해결하는 데이터 과학자를 양성하는 학과"}]}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>🏢 기업 소개<\/h3>\n          <p><strong>1. 기상청 국가기후데이터센터<\/strong> — 전국의 기상·기후 빅데이터를 수집·분석하고, 삼각함수 기반 예측 모델을 개발하여 농업, 재난관리, 에너지 분야에 맞춤형 기후정보를 제공하는 국가기관<\/p>\n          <p><strong>2. 엔씽(n.thing)<\/strong> — 인공지능과 IoT 센서를 활용해 도심 수직농장을 운영하고, 온도·습도 등의 주기적 환경 데이터를 삼각함수로 모델링하여 최적 생육환경을 자동 제어하는 애그테크 스타트업<\/p>\n          <p><strong>3. LG CNS 스마트팜 사업부<\/strong> — 대규모 온실의 기후 데이터를 실시간 분석하고, 수학 모델 기반 AI 알고리즘으로 에너지 사용을 최적화하여 농가 경영비를 절감하는 스마트농업 솔루션 기업<\/p>\n        <\/div>"}]}]};
+</script>
+<script>
+/* =====================================================================
+   공주시 AIDT 공통 엔진 v1
+   - 학습 기록 자동 저장(브라우저 localStorage)
+   - 학습자 정보, 활동 기반 진행률, 학습 시간
+   - 2회 도전형 퀴즈 + 오답 시 관련 개념 페이지 안내
+   - 나의 학습 리포트(성취 수준·맞춤 학습 경로·메타인지 비교)
+   - 학습 기록 내려받기(JSON) → 교사용 대시보드에서 분석
+   ===================================================================== */
+(function () {
+  'use strict';
+  var LID = META.id, KEY = 'aidt:v1:' + LID, PKEY = 'aidt:v1:profile';
+  var CFG = window.AIDT_CONFIG || {}, SUBMIT_URL = String(CFG.submitUrl || '').trim();
+  var VIDS = META.videos || [];
+
+  /* ---------- 저장소 ---------- */
+  var mem = {};
+  function sget(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return mem[k] || d; } }
+  function sset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } }
+  function fresh() { return { v: 1, inputs: {}, quiz: {}, assess: {}, steps: {}, videos: {}, visited: [], time: {}, last: 'p1', started: Date.now(), updated: Date.now() }; }
+  var S = sget(KEY, null) || fresh();
+  var P = sget(PKEY, null);
+  S.videos = S.videos || {};
+  var saveTimer = null;
+  function save(immediate) {
+    S.updated = Date.now();
+    S.summary = summary();
+    if (immediate) { sset(KEY, S); pill(); return; }
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () { sset(KEY, S); pill(); }, 300);
+  }
+
+  /* ---------- 유틸 ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function txt(h) { return String(h || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function $(s) { return document.querySelector(s); }
+  function fmtTime(sec) { sec = Math.round(sec || 0); var m = Math.floor(sec / 60); return m >= 60 ? Math.floor(m / 60) + '시간 ' + (m % 60) + '분' : m + '분 ' + (sec % 60) + '초'; }
+  var CIRC = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
+
+  /* ---------- 리포트 페이지 추가 ---------- */
+  if (VIDS.length) D.pages.splice(1, 0, { id: 'video', cat: '도입', icon: '🎬', title: '영상으로 미리 보기', blocks: [{ t: 'videos' }] });
+  D.pages.push({ id: 'report', cat: '마무리', icon: '📊', title: '나의 학습 리포트', blocks: [{ t: 'report' }] });
+  var PAGES = D.pages;
+  function pageById(id) { for (var i = 0; i < PAGES.length; i++) if (PAGES[i].id === id) return PAGES[i]; return null; }
+
+  /* ---------- 추적 항목(진행률 산정 대상) ---------- */
+  var ITEMS = [];          // {key,type,pid,label,...}
+  var QUIZ = [];           // 퀴즈 메타
+  PAGES.forEach(function (p) {
+    p.blocks.forEach(function (b, bi) {
+      var k = p.id + '.' + bi;
+      if (b.t === 'videos') VIDS.forEach(function (v, i) { ITEMS.push({ key: 'vid.' + v, type: 'video', pid: p.id, label: '영상 ' + (i + 1), vid: v }); });
+      if (b.t === 'input') ITEMS.push({ key: k, type: 'input', pid: p.id, label: txt(b.label) });
+      if (b.t === 'prediction') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'input', pid: p.id, label: txt(x.label) }); });
+      if (b.t === 'assessment') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'assess', pid: p.id, label: txt(x), ratings: b.ratings }); });
+      if (b.t === 'quiz') { var q = { key: k, type: 'quiz', pid: p.id, b: b, num: b.num, q: txt(b.q) }; ITEMS.push(q); QUIZ.push(q); }
+    });
+  });
+  function itemDone(it) {
+    if (it.type === 'input') return !!(S.inputs[it.key] && S.inputs[it.key].trim());
+    if (it.type === 'assess') return S.assess[it.key] != null;
+    if (it.type === 'quiz') return !!(S.quiz[it.key] && S.quiz[it.key].done);
+    if (it.type === 'video') return !!S.videos[it.vid];
+    return false;
+  }
+  function pageState(pid) {
+    var its = ITEMS.filter(function (x) { return x.pid === pid; });
+    if (pid === 'report') return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    if (!its.length) return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    var d = its.filter(itemDone).length;
+    return d === its.length ? 'done' : (d > 0 || S.visited.indexOf(pid) >= 0 ? 'part' : '');
+  }
+
+  /* ---------- 퀴즈 → 관련 개념 페이지 연결(어휘 중첩 기반) ---------- */
+  function words(s) { return (s.match(/[가-힣A-Za-z0-9]{2,}/g) || []); }
+  var conceptPages = PAGES.filter(function (p) { return p.cat === '알아봐요'; });
+  if (!conceptPages.length) conceptPages = PAGES.filter(function (p) { return p.cat === '활동해요'; });
+  var pageWords = {};
+  conceptPages.forEach(function (p) {
+    var t = p.title + ' ' + p.blocks.map(function (b) { return txt(b.v || b.body || b.title || '') + ' ' + (b.items ? txt(JSON.stringify(b.items)) : '') + ' ' + (b.tabs ? txt(JSON.stringify(b.tabs)) : ''); }).join(' ');
+    var set = {}; words(t).forEach(function (w) { set[w] = 1; set[w.slice(0, 2)] = 1; });
+    pageWords[p.id] = set;
+  });
+  var DF = {}, NP = conceptPages.length;
+  conceptPages.forEach(function (p) { for (var w in pageWords[p.id]) DF[w] = (DF[w] || 0) + 1; });
+  function idf(w) { return Math.log(1 + NP / (DF[w] || NP)); }
+  QUIZ.forEach(function (q) {
+    var b = q.b, src = b.q + ' ' + b.opts[b.ans] + ' ' + txt(b.ok), best = null, bs = -1;
+    var ws = {}; words(src).forEach(function (w) { ws[w] = 1; });
+    conceptPages.forEach(function (p) {
+      var s = 0, n = 0; for (var w in ws) { if (pageWords[p.id][w]) s += idf(w); else if (pageWords[p.id][w.slice(0, 2)]) s += idf(w.slice(0, 2)) * 0.3; }
+      for (var k in pageWords[p.id]) n++;
+      s = s / Math.pow(n + 20, 0.25);
+      if (s > bs) { bs = s; best = p; }
+    });
+    q.concept = best ? best.id : null;
+  });
+
+  /* ---------- 오답 힌트: 정답을 그대로 노출하면 일반 힌트로 대체 ---------- */
+  function safeHint(b) {
+    var h = txt(b.no), a = String(b.opts[b.ans]).trim();
+    var leak = a && h.indexOf(a) >= 0 && (a.length >= 3 || new RegExp('(=|은|는|이|가)\\s*' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(입니다|이다|이에요|$|\\.)').test(h));
+    if (!h || leak) return '풀이 과정을 다시 확인해 보세요. 관련 개념을 복습한 뒤 한 번 더 도전해 보세요.';
+    return h.replace(/^(힌트\s*[:：]\s*)/, '').replace(/^다시\s*(생각|계산)해\s*봅시다[.!]?\s*/, '');
+  }
+  function stripOk(s) { return txt(s).replace(/^(정답입니다[.!]?|정답[!.]|맞아요[.!]?|맞습니다[.!]?)\s*/, ''); }
+
+  /* ---------- 블록 렌더러 ---------- */
+  function rBlock(b, pid, bi) {
+    var k = pid + '.' + bi;
+    switch (b.t) {
+      case 'html': return b.v;
+      case 'objectives': return '<div class="blk blk-card"><h3>🎯 학습목표</h3><ul class="obj-list">' + b.items.map(function (x, i) { return '<li><span class="obj-num">' + (i + 1) + '</span><span>' + x + '</span></li>'; }).join('') + '</ul></div>';
+      case 'callout': return '<div class="callout ' + (b.variant || '') + '"><div class="c-title">' + b.title + '</div><div class="c-body">' + b.body + '</div></div>';
+      case 'input': {
+        var v = esc(S.inputs[k] || ''), lab = b.label;
+        return '<div class="blk input-group' + (v ? ' filled' : '') + '"><label for="i_' + k + '">' + lab + '</label>' +
+          (b.rows > 1 ? '<textarea id="i_' + k + '" data-k="' + k + '" rows="' + b.rows + '" placeholder="' + esc(b.ph || '') + '">' + v + '</textarea>'
+            : '<input type="text" id="i_' + k + '" data-k="' + k + '" placeholder="' + esc(b.ph || '') + '" value="' + v + '">') + '</div>';
+      }
+      case 'steps': return '<div class="steps"><div class="s-hd">📋 ' + b.title + '</div>' + b.items.map(function (s, i) {
+        var sk = k + '.' + i; return '<div class="step' + (S.steps[sk] ? ' done' : '') + '" data-sk="' + sk + '"><div class="s-n">' + (i + 1) + '</div><div class="s-c"><h4>' + s.title + '</h4><p>' + s.desc + '</p></div></div>';
+      }).join('') + '</div>';
+      case 'link': return '<a class="link-card" href="' + b.url + '" target="_blank" rel="noopener"><div class="l-icon">' + (b.icon || '🔗') + '</div><div class="l-info"><h4>' + b.title + '</h4><p>' + b.desc + '</p></div></a>';
+      case 'tabs': {
+        var tid = 't_' + k.replace('.', '_');
+        return '<div class="blk"><div class="tabs-nav">' + b.tabs.map(function (t, i) { return '<button class="tab-btn ' + (i === 0 ? 'active' : '') + '" data-tid="' + tid + '" data-ti="' + i + '">' + t.label + '</button>'; }).join('') + '</div>' +
+          b.tabs.map(function (t, i) { return '<div class="tab-panel ' + (i === 0 ? 'active' : '') + '" id="' + tid + '-' + i + '">' + t.content + '</div>'; }).join('') + '</div>';
+      }
+      case 'cards': return '<div class="cards-grid">' + b.items.map(function (c) { return '<div class="flip-card"><div class="flip-inner"><div class="flip-front">' + c.front.replace(/\n/g, '<br>') + '</div><div class="flip-back">' + c.back + '</div></div></div>'; }).join('') + '</div>';
+      case 'prediction': return '<div class="blk blk-card"><h4>🔮 예측 조건/행동 입력</h4>' + b.items.map(function (x, i) {
+        var pk = k + '.' + i; return '<div class="pred-row"><label for="i_' + pk + '">' + x.label + '</label><input type="text" id="i_' + pk + '" data-k="' + pk + '" placeholder="' + esc(x.ph || '') + '" value="' + esc(S.inputs[pk] || '') + '" style="width:100%"></div>';
+      }).join('') + '<div class="auto-note">✔ 입력하면 자동으로 저장됩니다.</div></div>';
+      case 'quiz': return quizHTML(k);
+      case 'assessment': return '<div class="blk blk-card"><h3>✅ ' + b.title + '</h3>' + b.items.map(function (x, i) {
+        var ak = k + '.' + i; return '<div class="assess-item"><span>' + x + '</span><div class="rating-g">' + b.ratings.map(function (r, ri) { return '<button class="r-btn' + (S.assess[ak] === ri ? ' sel' : '') + '" data-ak="' + ak + '" data-ri="' + ri + '">' + r + '</button>'; }).join('') + '</div></div>';
+      }).join('') + '</div>';
+      case 'code': {
+        var cid = 'c_' + k.replace('.', '_');
+        return '<div class="blk code-blk"><div class="code-hd"><span>' + esc(b.lang) + '</span><button class="code-copy" data-cid="' + cid + '">코드 복사</button></div><div class="code-bd"><pre id="' + cid + '">' + esc(b.code) + '</pre></div></div>';
+      }
+      case 'wokwi': return '<div class="blk"><a class="link-card wokwi" href="https://wokwi.com/projects/new/arduino-uno" target="_blank" rel="noopener"><div class="l-icon">🔧</div><div class="l-info"><h4>Wokwi 시뮬레이터로 직접 실습해 보기 ↗</h4><p>새 탭으로 시뮬레이터를 열어두고, 아래 코드를 하나씩 복사해 붙여넣은 뒤 ▶ 버튼으로 실행해 보세요.</p></div></a></div>';
+      case 'videos': return '<div class="blk"><p>이번 차시의 핵심 내용을 짧은 영상 ' + VIDS.length + '편으로 먼저 만나 봅시다. 영상을 보고 다음 쪽 <b>생각해요</b>로 넘어가세요.</p></div><div class="vid-grid">' +
+        VIDS.map(function (v, i) { return '<div class="vid-card' + (S.videos[v] ? ' seen' : '') + '"><div class="vid-thumb" data-vid="' + v + '" style="background-image:url(https://i.ytimg.com/vi/' + v + '/hqdefault.jpg)"><span class="vid-play">▶</span></div><div class="vid-cap"><b>🎬 영상 ' + (i + 1) + '</b><span class="vid-seen">✓ 시청함</span><a href="https://youtu.be/' + v + '" target="_blank" rel="noopener" data-vlink="' + v + '">유튜브에서 보기 ↗</a></div></div>'; }).join('') +
+        '</div>' + (location.protocol === 'file:' ? '<p class="muted small">※ 파일로 열면 유튜브 새 탭에서 재생됩니다.</p>' : '');
+      case 'report': return reportHTML();
+      default: return '';
+    }
+  }
+
+  /* ---------- 퀴즈 ---------- */
+  function qmeta(key) { for (var i = 0; i < QUIZ.length; i++) if (QUIZ[i].key === key) return QUIZ[i]; }
+  function quizHTML(key) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] }, tries = st.tries || [];
+    var done = !!st.done, correct = done && tries[tries.length - 1] === b.ans;
+    var badge = '';
+    if (done && correct) badge = '<span class="q-badge ok">' + (tries.length === 1 ? '✓ 정답' : '✓ 2회 만에 정답') + '</span>';
+    else if (done) badge = '<span class="q-badge no">✗ 오답</span>';
+    else if (tries.length) badge = '<span class="q-badge try">기회 1번 남음</span>';
+    var h = '<div class="blk blk-card quiz-card" id="q_' + key.replace('.', '_') + '"><div class="quiz-q"><span class="qn">' + b.num + '.</span><span style="flex:1">' + b.q + '</span>' + badge + '</div>';
+    h += b.opts.map(function (o, i) {
+      var cls = '', mark = CIRC[i] || (i + 1);
+      if (tries.indexOf(i) >= 0 && i !== b.ans) { cls = ' wrong'; mark = '✗'; }
+      if (done && i === b.ans) { cls = ' correct'; mark = '✓'; }
+      var dis = done || tries.indexOf(i) >= 0 ? ' disabled' : '';
+      return '<div class="quiz-opt' + cls + dis + '" data-qk="' + key + '" data-qi="' + i + '"><span class="oc">' + mark + '</span><span>' + o + '</span></div>';
+    }).join('');
+    var concept = m.concept && pageById(m.concept);
+    var clink = concept ? '<a class="concept-link" data-go="' + concept.id + '">📖 관련 개념 다시 보기: ' + concept.title + '</a>' : '';
+    if (done && correct) h += '<div class="quiz-fb ok show">' + b.ok + '</div>';
+    else if (done) h += '<div class="quiz-fb no show"><b>정답은 ' + (CIRC[b.ans] || '') + ' ' + b.opts[b.ans] + '입니다.</b><br>💡 ' + stripOk(b.ok) + '</div>' + clink;
+    else if (tries.length) h += '<div class="quiz-fb no show"><b>다시 생각해 봅시다.</b> ' + safeHint(b) + '</div>' + clink;
+    return h + '</div>';
+  }
+  function answerQuiz(key, i) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] };
+    if (st.done || st.tries.indexOf(i) >= 0) return;
+    st.tries.push(i);
+    if (i === b.ans) { st.done = true; st.first = st.tries.length === 1; }
+    else if (st.tries.length >= 2) { st.done = true; st.first = false; }
+    st.at = Date.now();
+    S.quiz[key] = st; save(true);
+    var el = document.getElementById('q_' + key.replace('.', '_'));
+    if (el) el.outerHTML = quizHTML(key);
+    refreshProgress();
+  }
+
+  /* ---------- 영상 ---------- */
+  function markVideo(v) { if (!S.videos[v]) { S.videos[v] = Date.now(); save(true); refreshProgress(); } var c = document.querySelector('[data-vid="' + v + '"]'); if (c) c.closest('.vid-card').classList.add('seen'); }
+  function playVideo(el, v) {
+    markVideo(v); el.closest('.vid-card').classList.add('seen');
+    if (location.protocol === 'file:') { window.open('https://youtu.be/' + v, '_blank', 'noopener'); return; }
+    el.removeAttribute('data-vid'); el.style.backgroundImage = 'none';
+    el.innerHTML = '<iframe src="https://www.youtube.com/embed/' + v + '?autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="영상"></iframe>';
+  }
+
+  /* ---------- 요약 통계 ---------- */
+  function summary() {
+    var tot = ITEMS.length, done = ITEMS.filter(itemDone).length;
+    var qn = QUIZ.length, first = 0, second = 0, wrong = 0, answered = 0;
+    QUIZ.forEach(function (q) { var s = S.quiz[q.key]; if (!s || !s.done) return; answered++; var c = s.tries[s.tries.length - 1] === q.b.ans; if (c && s.first) first++; else if (c) second++; else wrong++; });
+    var score = answered ? Math.round((first + second * 0.5) / answered * 100) : null;
+    var prov = score == null ? '-' : score >= 80 ? '상' : score >= 50 ? '중' : '하';
+    var level = answered === 0 ? '-' : answered < qn ? '미완료' : prov;
+    var as = ITEMS.filter(function (x) { return x.type === 'assess' && S.assess[x.key] != null; });
+    var self = as.length ? Math.round(as.reduce(function (a, x) { return a + (2 - Math.min(2, S.assess[x.key])); }, 0) / (as.length * 2) * 100) : null;
+    var t = 0; for (var p in S.time) t += S.time[p];
+    var vw = VIDS.filter(function (v) { return S.videos[v]; }).length;
+    return { progress: tot ? Math.round(done / tot * 100) : 0, done: done, total: tot, quizTotal: qn, answered: answered, prov: prov, first: first, second: second, wrong: wrong, score: score, level: level, self: self, timeSec: Math.round(t), videosWatched: vw, videosTotal: VIDS.length };
+  }
+
+  /* ---------- 리포트 ---------- */
+  function reportHTML() {
+    var s = summary(), who = P ? esc(profileText(P)) : '<a class="concept-link" data-act="profile">학습자 정보 입력하기</a>';
+    var h = '<div class="blk blk-card rep-head"><div class="rep-who">👤 ' + who + '</div><div class="rep-meta">' + esc(META.subject) + ' ' + esc(META.code) + ' · ' + esc(D.title) + '</div>' +
+      '<div class="rep-stats">' +
+      stat('진행률', s.progress + '%', s.done + ' / ' + s.total + ' 활동') +
+      stat('퀴즈 성취도', s.answered ? s.score + '점' : '–', s.answered ? '1차 정답 ' + s.first + ' · 2차 정답 ' + s.second + ' · 오답 ' + s.wrong : '아직 풀지 않음') +
+      stat('성취 수준', s.level === '미완료' ? s.prov + '<small>(잠정)</small>' : s.level, s.level === '미완료' ? '퀴즈 ' + (s.quizTotal - s.answered) + '문항 남음' : s.level === '상' ? '목표 도달' : s.level === '중' ? '부분 도달' : s.level === '하' ? '보충 필요' : '') +
+      stat('학습 시간', fmtTime(s.timeSec), VIDS.length ? '영상 시청 ' + s.videosWatched + ' / ' + s.videosTotal + '편' : '이 차시에서 보낸 시간') + '</div></div>';
+
+    // 맞춤 학습 경로
+    var wrongQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return st && st.done && !st.first; });
+    var notQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return !st || !st.done; });
+    h += '<div class="blk blk-card"><h3>🧭 나에게 맞는 다음 학습</h3>';
+    if (!s.answered) {
+      h += '<p>먼저 활동퀴즈를 풀어 보세요. 결과에 따라 맞춤 학습 경로를 안내합니다.</p>' + (notQ.length ? '<p><a class="concept-link" data-go="' + notQ[0].pid + '">❓ 활동퀴즈 풀러 가기</a></p>' : '');
+    } else {
+      var L = s.prov;
+      var msg = (s.level === '미완료' ? '(지금까지 푼 ' + s.answered + '문항 기준) ' : '') + (L === '상' ? '🎉 학습목표에 도달했어요! 심화 자료로 생각을 넓혀 보세요.'
+        : L === '중' ? '👍 핵심은 이해했어요. 헷갈린 개념만 다시 정리하면 완벽해요.'
+          : '💪 기본 개념을 다시 다져 볼까요? 아래 순서대로 복습한 뒤 틀린 문제에 다시 도전해 보세요.');
+      h += '<p class="rep-msg lv-' + L + '">' + msg + '</p>';
+      var rec = [];
+      if (L === '하') conceptPages.forEach(function (p) { rec.push([p.id, '📖 기본 개념: ' + p.title]); });
+      var seen = {};
+      wrongQ.forEach(function (q) { if (q.concept && !seen[q.concept]) { seen[q.concept] = 1; var p = pageById(q.concept); if (L !== '하') rec.push([p.id, '📖 ' + q.num + '번 관련 개념: ' + p.title]); } });
+      if (L === '상') PAGES.forEach(function (p) { if (/읽기|진로/.test(p.title) && p.cat === '정리') rec.push([p.id, (/진로/.test(p.title) ? '🧭 ' : '📚 ') + '심화: ' + p.title]); });
+      if (notQ.length) rec.push([notQ[0].pid, '❓ 아직 풀지 않은 퀴즈 ' + notQ.length + '문항']);
+      if (rec.length) h += '<ol class="rec-list">' + rec.map(function (r) { return '<li><a class="concept-link" data-go="' + r[0] + '">' + r[1] + '</a></li>'; }).join('') + '</ol>';
+      if (wrongQ.length) h += '<button class="btn btn-o" data-act="retry">🔁 틀린 문제 다시 풀기 (' + wrongQ.length + '문항)</button>';
+    }
+    h += '</div>';
+
+    // 문항별 결과
+    if (QUIZ.length) {
+      h += '<div class="blk blk-card"><h3>📝 문항별 결과</h3><table class="rep-tbl"><tr><th>번호</th><th>문항</th><th>결과</th><th>다시 보기</th></tr>';
+      QUIZ.forEach(function (q) {
+        var st = S.quiz[q.key], r = '<span class="muted">미응시</span>';
+        if (st && st.done) { var c = st.tries[st.tries.length - 1] === q.b.ans; r = c ? (st.first ? '<span class="r-ok">✓ 정답</span>' : '<span class="r-mid">△ 2차 정답</span>') : '<span class="r-no">✗ 오답</span>'; }
+        var cp = q.concept && pageById(q.concept);
+        h += '<tr><td>' + q.num + '</td><td><a class="concept-link" data-go="' + q.pid + '">' + esc(q.q.length > 48 ? q.q.slice(0, 48) + '…' : q.q) + '</a></td><td>' + r + '</td><td>' + (cp ? '<a class="concept-link" data-go="' + cp.id + '">' + esc(cp.title) + '</a>' : '') + '</td></tr>';
+      });
+      h += '</table></div>';
+    }
+
+    // 메타인지: 자기진단 vs 퀴즈
+    if (s.self != null) {
+      var cmp = '';
+      if (s.answered) {
+        var d = s.self - s.score;
+        cmp = d > 25 ? '스스로 평가한 이해도(' + s.self + '%)가 퀴즈 결과(' + s.score + '점)보다 높아요. 틀린 문항의 개념을 다시 확인해 보세요.'
+          : d < -25 ? '퀴즈 결과(' + s.score + '점)가 스스로 평가한 이해도(' + s.self + '%)보다 높아요. 생각보다 잘 이해하고 있으니 자신감을 가져도 좋아요!'
+            : '스스로 평가한 이해도(' + s.self + '%)와 퀴즈 결과(' + s.score + '점)가 비슷해요. 자신의 학습 상태를 잘 파악하고 있어요.';
+      } else cmp = '스스로 평가한 이해도는 ' + s.self + '%입니다. 퀴즈를 풀면 실제 결과와 비교해 드려요.';
+      h += '<div class="blk blk-card"><h3>🪞 스스로 진단 vs 실제 결과</h3><p>' + cmp + '</p></div>';
+    }
+
+    // 미작성 활동
+    var empty = ITEMS.filter(function (x) { return (x.type === 'input' || x.type === 'assess') && !itemDone(x); });
+    h += '<div class="blk blk-card"><h3>✍️ 아직 작성하지 않은 활동 ' + (empty.length ? '(' + empty.length + '개)' : '') + '</h3>';
+    if (!empty.length) h += '<p>모든 활동을 작성했어요. 훌륭해요!</p>';
+    else {
+      var byP = {}; empty.forEach(function (x) { (byP[x.pid] = byP[x.pid] || []).push(x); });
+      h += '<ul class="rec-list">' + Object.keys(byP).map(function (pid) { var p = pageById(pid); return '<li><a class="concept-link" data-go="' + pid + '">' + p.icon + ' ' + esc(p.title) + '</a> <span class="muted">· ' + byP[pid].length + '개</span></li>'; }).join('') + '</ul>';
+    }
+    h += '</div>';
+
+    // 내 답변 모아보기
+    var filled = ITEMS.filter(function (x) { return x.type === 'input' && itemDone(x); });
+    if (filled.length) {
+      h += '<details class="blk blk-card"><summary><b>🗂️ 내가 작성한 답변 모아보기 (' + filled.length + '개)</b></summary><div class="ans-list">' +
+        filled.map(function (x) { return '<div class="ans-item"><div class="ans-q">' + esc(x.label) + '</div><div class="ans-a">' + esc(S.inputs[x.key]).replace(/\n/g, '<br>') + '</div></div>'; }).join('') + '</div></details>';
+    }
+
+    var sub = S.submittedAt ? new Date(S.submittedAt) : null;
+    if (SUBMIT_URL) h += '<div class="blk blk-card submit-box' + (sub ? ' done' : '') + '"><div><b>' + (sub ? '✅ 선생님께 제출했어요' : '📤 학습 결과를 선생님께 제출하세요') + '</b><div class="muted small">' + (sub ? '제출 시각 ' + sub.toLocaleString('ko-KR') + ' · 내용을 고쳤다면 다시 제출하세요(최신 기록으로 바뀝니다).' : '버튼을 누르면 선생님의 구글 시트로 바로 전송됩니다.') + '</div></div><button class="btn btn-p" data-act="submit">' + (sub ? '🔁 다시 제출하기' : '📤 선생님께 제출하기') + '</button></div>';
+    h += '<div class="blk rep-actions"><button class="btn ' + (SUBMIT_URL ? 'btn-o' : 'btn-p') + '" data-act="export">📥 학습 기록 내려받기</button><button class="btn btn-o" data-act="print">🖨️ 인쇄 / PDF 저장</button><button class="btn btn-o" data-act="reset">↺ 처음부터 다시 하기</button></div>' +
+      '<p class="muted small">' + (SUBMIT_URL ? '제출 버튼이 작동하지 않으면 학습 기록을 내려받아 선생님께 파일로 제출하세요.' : '내려받은 학습 기록(.json) 파일을 구글 클래스룸 등으로 선생님께 제출하세요.') + ' 선생님은 교사용 대시보드에서 학급 결과를 한눈에 볼 수 있어요. 학습 기록은 이 기기의 브라우저에만 저장됩니다.</p>';
+    return h;
+    function stat(l, v, sub) { return '<div class="rep-stat"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + sub + '</div></div>'; }
+  }
+
+  /* ---------- 내보내기 ---------- */
+  function profileText(p) { return [p.school, p.grade ? p.grade + '학년' : '', p.cls ? p.cls + '반' : '', p.num ? p.num + '번' : '', p.name].filter(Boolean).join(' '); }
+  function buildRecord() {
+    var s = summary();
+    return {
+      format: 'gongju-aidt-v1', exportedAt: new Date().toISOString(),
+      lesson: { id: LID, subject: META.subject, code: META.code, title: D.title },
+      student: P, summary: s,
+      quiz: QUIZ.map(function (q) { var st = S.quiz[q.key] || { tries: [] }; var c = st.done && st.tries[st.tries.length - 1] === q.b.ans; return { num: q.num, question: q.q, answer: txt(q.b.opts[q.b.ans]), tries: st.tries.map(function (i) { return txt(q.b.opts[i]); }), done: !!st.done, correct: !!c, firstCorrect: !!(c && st.first), concept: q.concept ? pageById(q.concept).title : '' }; }),
+      responses: ITEMS.filter(function (x) { return x.type === 'input'; }).map(function (x) { return { key: x.key, page: pageById(x.pid).title, prompt: x.label, answer: S.inputs[x.key] || '' }; }),
+      selfAssessment: ITEMS.filter(function (x) { return x.type === 'assess'; }).map(function (x) { return { item: x.label, rating: S.assess[x.key] != null ? x.ratings[S.assess[x.key]] : '', score: S.assess[x.key] != null ? 2 - Math.min(2, S.assess[x.key]) : null }; }),
+      timePerPage: PAGES.map(function (p) { return { page: p.title, sec: Math.round(S.time[p.id] || 0) }; }),
+      videos: VIDS.map(function (v, i) { return { n: i + 1, id: v, watched: !!S.videos[v] }; })
+    };
+  }
+  function exportRecord() {
+    if (!P || !P.name) { openProfile(function () { exportRecord(); }); return; }
+    var rec = buildRecord();
+    var name = [P.grade && P.cls && P.num ? P.grade + String(P.cls).padStart(2, '0') + String(P.num).padStart(2, '0') : '', P.name, META.subject + META.code].filter(Boolean).join('_') + '.json';
+    var blob = new Blob([JSON.stringify(rec, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast('📥 ' + name + ' 파일을 내려받았어요.');
+  }
+  var submitting = false;
+  function submitRecord(btn) {
+    if (!P || !P.name) { openProfile(function () { submitRecord(); }); return; }
+    if (submitting) return; submitting = true;
+    if (btn) { btn.disabled = true; btn.textContent = '제출 중…'; }
+    tick(); save(true);
+    var body = JSON.stringify(buildRecord());
+    function done(ok, msg) {
+      submitting = false;
+      if (ok) { S.submittedAt = Date.now(); save(true); toast('✅ 선생님께 제출했어요!'); }
+      else toast('⚠️ 제출하지 못했어요. ' + (msg || '인터넷 연결을 확인하거나 학습 기록을 내려받아 제출하세요.'));
+      if (cur === 'report') render('report');
+    }
+    fetch(SUBMIT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { done(!!j.ok, j.error === 'closed' ? '선생님이 제출을 마감했어요.' : ''); })
+      .catch(function () {
+        fetch(SUBMIT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body })
+          .then(function () { done(true); }, function () { done(false); });
+      });
+  }
+
+  /* ---------- 학습자 정보 ---------- */
+  function openProfile(after) {
+    var p = P || {};
+    var ov = document.createElement('div'); ov.className = 'modal-ov';
+    ov.innerHTML = '<div class="modal"><h3>👋 학습자 정보</h3><p class="muted small">학습 기록에 함께 저장되어 선생님께 제출할 때 사용됩니다. 이 기기의 모든 차시에 공통으로 적용돼요.</p>' +
+      '<div class="pf-grid"><label>학교<input id="pf_school" value="' + esc(p.school || '') + '" placeholder="예: 공주고등학교"></label>' +
+      '<label>학년<input id="pf_grade" inputmode="numeric" value="' + esc(p.grade || '') + '" placeholder="1"></label>' +
+      '<label>반<input id="pf_cls" inputmode="numeric" value="' + esc(p.cls || '') + '" placeholder="3"></label>' +
+      '<label>번호<input id="pf_num" inputmode="numeric" value="' + esc(p.num || '') + '" placeholder="12"></label>' +
+      '<label class="full">이름<input id="pf_name" value="' + esc(p.name || '') + '" placeholder="홍길동"></label></div>' +
+      '<div class="modal-btns"><button class="btn btn-o" id="pf_skip">나중에</button><button class="btn btn-p" id="pf_ok">저장하고 시작</button></div></div>';
+    document.body.appendChild(ov);
+    setTimeout(function () { var n = document.getElementById('pf_name'); if (n) n.focus(); }, 50);
+    ov.querySelector('#pf_skip').onclick = function () { ov.remove(); };
+    ov.querySelector('#pf_ok').onclick = function () {
+      var g = function (id) { return document.getElementById(id).value.trim(); };
+      if (!g('pf_name')) { document.getElementById('pf_name').focus(); toast('이름을 입력해 주세요.'); return; }
+      P = { school: g('pf_school'), grade: g('pf_grade'), cls: g('pf_cls'), num: g('pf_num'), name: g('pf_name') };
+      sset(PKEY, P); ov.remove(); renderWho(); if (cur === 'report') render('report'); if (after) after();
+    };
+  }
+  function renderWho() { var w = document.getElementById('who'); if (w) w.innerHTML = P ? '👤 ' + esc(profileText(P)) + ' <a data-act="profile">수정</a>' : '👤 <a data-act="profile">학습자 정보 입력</a>'; }
+
+  /* ---------- 화면 ---------- */
+  var cur = null, pageStart = Date.now();
+  function tick() {
+    if (cur && !document.hidden) { var dt = (Date.now() - pageStart) / 1000; if (dt > 0 && dt < 600) S.time[cur] = (S.time[cur] || 0) + dt; }
+    pageStart = Date.now();
+  }
+  setInterval(function () { tick(); save(); }, 15000);
+  document.addEventListener('visibilitychange', function () { tick(); save(true); });
+  window.addEventListener('beforeunload', function () { tick(); save(true); });
+
+  function buildNav() {
+    var h = '', c = null;
+    PAGES.forEach(function (p) {
+      if (p.cat !== c) { h += '<div class="nav-cat">' + p.cat + '</div>'; c = p.cat; }
+      var st = pageState(p.id);
+      h += '<div class="nav-item' + (p.id === cur ? ' active' : '') + (p.id === 'report' ? ' nav-report' : '') + '" data-pid="' + p.id + '"><span class="icon">' + p.icon + '</span><span style="flex:1">' + p.title + '</span><span class="nst ' + st + '">' + (st === 'done' ? '✓' : st === 'part' ? '•' : '') + '</span></div>';
+    });
+    document.getElementById('nav').innerHTML = h;
+  }
+  function refreshProgress() {
+    var s = summary();
+    document.getElementById('pTxt').textContent = s.progress + '%';
+    document.getElementById('pBar').style.width = s.progress + '%';
+    var sub = document.getElementById('pSub'); if (sub) sub.textContent = s.done + ' / ' + s.total + ' 활동 완료' + (s.answered ? ' · 퀴즈 ' + s.score + '점' : '');
+    document.querySelectorAll('.nav-item').forEach(function (el) { var st = pageState(el.dataset.pid), n = el.querySelector('.nst'); n.className = 'nst ' + st; n.textContent = st === 'done' ? '✓' : st === 'part' ? '•' : ''; });
+  }
+  function pill() { var e = document.getElementById('savePill'); if (!e) return; var d = new Date(S.updated); e.textContent = '✔ 자동 저장됨 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); e.classList.add('flash'); setTimeout(function () { e.classList.remove('flash'); }, 600); }
+  function toast(m) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.classList.add('show'); }, 10); setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 2600); }
+
+  function render(pid) {
+    var pg = pageById(pid) || PAGES[0]; pid = pg.id;
+    tick(); cur = pid; S.last = pid;
+    if (S.visited.indexOf(pid) < 0) S.visited.push(pid);
+    var idx = PAGES.indexOf(pg), m = document.getElementById('main');
+    var prev = idx > 0 ? '<button class="btn btn-o" data-go="' + PAGES[idx - 1].id + '">← 이전</button>' : '<div></div>';
+    var next = idx < PAGES.length - 1 ? '<button class="btn btn-p" data-go="' + PAGES[idx + 1].id + '">' + (PAGES[idx + 1].id === 'report' ? '📊 학습 리포트 보기 →' : '다음 →') + '</button>' : '<a class="btn btn-p" href="../index.html">전체 차시로 →</a>';
+    m.innerHTML = '<div class="pg-hd"><div class="pg-top"><div class="pg-crumb">' + D.title + (pg.cat ? ' &gt; ' + pg.cat : '') + '</div><span class="save-pill" id="savePill">✔ 자동 저장</span></div><h2 class="pg-title">' + pg.icon + ' ' + pg.title + '</h2></div>' +
+      pg.blocks.map(function (b, bi) { return rBlock(b, pid, bi); }).join('') + '<div class="pg-nav">' + prev + next + '</div>';
+    if (location.hash !== '#' + pid) history.replaceState(null, '', '#' + pid);
+    document.querySelectorAll('.nav-item').forEach(function (el) { el.classList.toggle('active', el.dataset.pid === pid); });
+    save(true); refreshProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector('.sidebar').classList.remove('open');
+  }
+  window.go = render;
+
+  /* ---------- 이벤트(위임) ---------- */
+  document.addEventListener('input', function (e) {
+    var k = e.target.dataset && e.target.dataset.k; if (!k) return;
+    S.inputs[k] = e.target.value; save();
+    var g = e.target.closest('.input-group'); if (g) g.classList.toggle('filled', !!e.target.value.trim());
+    clearTimeout(refreshProgress._t); refreshProgress._t = setTimeout(refreshProgress, 400);
+  });
+  document.addEventListener('click', function (e) {
+    var vl = e.target.closest('[data-vlink]'); if (vl) { markVideo(vl.dataset.vlink); return; }
+    var t = e.target.closest('[data-go],[data-pid],[data-qk],[data-ak],[data-sk],[data-tid],[data-cid],[data-act],[data-vid],.flip-card');
+    if (!t) return;
+    if (t.dataset.vid) { playVideo(t, t.dataset.vid); return; }
+    if (t.dataset.go) { e.preventDefault(); render(t.dataset.go); return; }
+    if (t.dataset.pid) { render(t.dataset.pid); return; }
+    if (t.dataset.qk) { if (!t.classList.contains('disabled')) answerQuiz(t.dataset.qk, +t.dataset.qi); return; }
+    if (t.dataset.ak) { S.assess[t.dataset.ak] = +t.dataset.ri; t.parentElement.querySelectorAll('.r-btn').forEach(function (b) { b.classList.toggle('sel', b === t); }); save(); refreshProgress(); return; }
+    if (t.dataset.sk) { S.steps[t.dataset.sk] = !S.steps[t.dataset.sk]; t.classList.toggle('done', !!S.steps[t.dataset.sk]); save(); return; }
+    if (t.dataset.tid) { var p = t.parentElement; p.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === t); }); document.querySelectorAll('[id^="' + t.dataset.tid + '-"]').forEach(function (x) { x.classList.toggle('active', x.id === t.dataset.tid + '-' + t.dataset.ti); }); return; }
+    if (t.dataset.cid) { var c = document.getElementById(t.dataset.cid).textContent; (navigator.clipboard ? navigator.clipboard.writeText(c) : Promise.reject()).then(function () { t.textContent = '복사 완료 ✔'; }, function () { t.textContent = '직접 선택해 복사하세요'; }); setTimeout(function () { t.textContent = '코드 복사'; }, 2000); return; }
+    if (t.classList.contains('flip-card')) { t.classList.toggle('flipped'); return; }
+    var a = t.dataset.act;
+    if (a === 'profile') openProfile();
+    if (a === 'export') exportRecord();
+    if (a === 'submit') submitRecord(t);
+    if (a === 'print') window.print();
+    if (a === 'retry') { var first = null; QUIZ.forEach(function (q) { var st = S.quiz[q.key]; if (st && st.done && !st.first) { st.retried = (st.retried || 0) + 1; delete S.quiz[q.key]; if (!first) first = q.pid; } }); save(true); toast('틀린 문제를 다시 풀 수 있어요.'); if (first) render(first); }
+    if (a === 'reset') { if (confirm('이 차시의 모든 학습 기록(답변·퀴즈·진단)을 지울까요? 되돌릴 수 없습니다.')) { S = fresh(); save(true); buildNav(); render('p1'); } }
+  });
+
+  /* ---------- 시작 ---------- */
+  var side = document.querySelector('.sidebar-hd');
+  side.insertAdjacentHTML('afterbegin', '<a class="home-link" href="../index.html">← 전체 차시</a>');
+  document.querySelector('.sidebar-ft').insertAdjacentHTML('beforeend', '<div class="prog-sub" id="pSub"></div><div class="who" id="who"></div>');
+  buildNav(); renderWho();
+  var start = (location.hash || '').slice(1);
+  render(pageById(start) ? start : (S.last && pageById(S.last) ? S.last : 'p1'));
+  if (!P) setTimeout(function () { openProfile(); }, 400);
+})();
+
+</script>
+</body>
+</html>

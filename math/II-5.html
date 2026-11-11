@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIDT — 백제 복식의 대칭 구조 분석</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800;900&display=swap');
+:root {
+  --bg:#F5F4F0;--surface:#fff;--surface-alt:#FAFAF7;--border:#E5E3DD;--border-lt:#EEECE6;
+  --txt:#1A1A1A;--txt2:#555;--txt3:#999;
+  --accent:#10b981;--accent-lt:#d1fae5;--accent-dk:#059669;
+  --blue:#3b82f6;--blue-lt:#eff6ff;--green:#10b981;--green-lt:#d1fae5;
+  --purple:#8b5cf6;--purple-lt:#ede9fe;--red:#ef4444;--red-lt:#fee2e2;
+  --radius:12px;--radius-sm:8px;--transition:.25s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Noto Sans KR',-apple-system,sans-serif;background:var(--bg);color:var(--txt);line-height:1.75;font-size:15px;-webkit-font-smoothing:antialiased}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:290px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+.sidebar-hd{padding:20px 16px 14px;border-bottom:1px solid var(--border-lt)}
+.sidebar-hd h1{font-size:11px;font-weight:800;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-bottom:2px}
+.sidebar-hd .topic{font-size:16px;font-weight:700;line-height:1.4}
+.sidebar-nav{flex:1;padding:8px 6px;overflow-y:auto}
+
+/* Navigation Categories & Items */
+.nav-cat{font-size:11px;font-weight:800;color:var(--txt3);margin:20px 12px 6px;padding-bottom:4px;border-bottom:1px solid var(--border-lt);letter-spacing:1px;}
+.nav-item{display:flex;align-items:flex-start;gap:8px;padding:9px 12px;font-size:13px;color:var(--txt2);cursor:pointer;border-radius:var(--radius-sm);transition:var(--transition);line-height:1.4;word-break:keep-all;}
+.nav-item:hover{background:var(--surface-alt);color:var(--txt)}
+.nav-item.active{background:var(--accent-lt);color:var(--accent-dk);font-weight:700}
+.nav-item .icon{font-size:15px;flex-shrink:0;width:20px;text-align:center;margin-top:1px;}
+
+.sidebar-ft{padding:10px 16px;border-top:1px solid var(--border-lt)}
+.prog-label{font-size:11px;font-weight:600;color:var(--txt3);margin-bottom:4px}
+.prog-bg{height:4px;background:var(--border-lt);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .4s}
+.content{flex:1;margin-left:290px;padding:28px 44px 80px;max-width:860px}
+.mobile-tog{display:none;position:fixed;top:10px;left:10px;z-index:200;width:38px;height:38px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);align-items:center;justify-content:center;cursor:pointer;font-size:16px}
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);transition:transform .3s}
+  .sidebar.open{transform:translateX(0)}
+  .content{margin-left:0;padding:18px 14px 60px}
+  .mobile-tog{display:flex!important}
+}
+
+/* Page header */
+.pg-hd{margin-bottom:28px}
+.pg-crumb{font-size:12px;color:var(--txt3);margin-bottom:6px}
+.pg-title{font-size:26px;font-weight:800;line-height:1.3}
+
+/* Blocks */
+.blk{margin-bottom:22px}
+.blk-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px}
+.blk h3{font-size:16px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.blk h4{font-size:14px;font-weight:700;margin:16px 0 8px}
+.blk p,.blk li{font-size:14px;line-height:1.8;color:var(--txt)}
+.blk p+p{margin-top:10px}
+.blk ul{padding-left:20px;margin:8px 0}
+.blk ul li{margin-bottom:4px}
+
+/* Callout */
+.callout{border-left:4px solid var(--accent);background:var(--accent-lt);padding:14px 18px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;margin-bottom:18px}
+.callout.blue{background:var(--blue-lt);border-color:var(--blue)}
+.callout.green{background:var(--green-lt);border-color:var(--green)}
+.callout.purple{background:var(--purple-lt);border-color:var(--purple)}
+.callout .c-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.callout .c-body{font-size:14px;line-height:1.7;color:var(--txt2)}
+
+/* Objectives */
+.obj-list{list-style:none;padding:0}
+.obj-list li{display:flex;align-items:flex-start;gap:10px;padding:7px 0;font-size:14px}
+.obj-num{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+
+/* Input */
+.input-group{margin-bottom:14px}
+.input-group label{display:block;font-size:14px;font-weight:600;margin-bottom:6px}
+.input-group textarea,.input-group input[type=text]{width:100%;border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;font-size:14px;font-family:inherit;line-height:1.6;resize:vertical;background:var(--bg);transition:var(--transition)}
+.input-group textarea:focus,.input-group input[type=text]:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Steps */
+.steps{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:18px}
+.steps .s-hd{padding:14px 18px;border-bottom:1px solid var(--border-lt);font-size:14px;font-weight:700}
+.step{padding:14px 18px;border-bottom:1px solid var(--border-lt);display:flex;gap:12px;cursor:pointer;transition:var(--transition)}
+.step:last-child{border-bottom:none}
+.step:hover{background:var(--surface-alt)}
+.step .s-n{width:26px;height:26px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--txt3);flex-shrink:0;transition:var(--transition)}
+.step.done .s-n{background:var(--green);border-color:var(--green);color:#fff}
+.step .s-c h4{font-size:14px;font-weight:600;margin:0 0 3px}
+.step .s-c p{font-size:13px;color:var(--txt2);margin:0}
+
+/* Tabs */
+.tabs-nav{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:0}
+.tab-btn{padding:9px 18px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt3);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;transition:var(--transition)}
+.tab-btn:hover{color:var(--txt)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-panel{display:none;padding:16px 0;font-size:14px;line-height:1.8}
+.tab-panel.active{display:block}
+
+/* Flip Cards */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-bottom:18px}
+.flip-card{height:130px;perspective:1000px;cursor:pointer}
+.flip-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.flip-card.flipped .flip-inner{transform:rotateY(180deg)}
+.flip-front,.flip-back{position:absolute;width:100%;height:100%;backface-visibility:hidden;border-radius:var(--radius);display:flex;align-items:center;justify-content:center;text-align:center;padding:14px;font-size:14px}
+.flip-front{background:var(--accent-lt);border:1px solid var(--accent);font-weight:700;color:var(--accent-dk)}
+.flip-back{background:var(--surface);border:1px solid var(--border);transform:rotateY(180deg);color:var(--txt2);font-size:13px;line-height:1.5}
+
+/* Quiz */
+.quiz-q{font-size:15px;font-weight:600;margin-bottom:14px;display:flex;gap:8px}
+.quiz-q .qn{color:var(--accent);font-weight:800}
+.quiz-opt{display:flex;align-items:center;gap:10px;padding:9px 13px;border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:7px;cursor:pointer;transition:var(--transition);font-size:14px}
+.quiz-opt:hover{border-color:var(--accent);background:var(--accent-lt)}
+.quiz-opt.correct{border-color:var(--green);background:var(--green-lt)}
+.quiz-opt.wrong{border-color:var(--red);background:var(--red-lt)}
+.quiz-opt .oc{width:18px;height:18px;border-radius:50%;border:2px solid var(--border);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px;transition:var(--transition)}
+.quiz-opt.correct .oc{border-color:var(--green);background:var(--green);color:#fff}
+.quiz-opt.wrong .oc{border-color:var(--red);background:var(--red);color:#fff}
+.quiz-fb{padding:10px 14px;border-radius:var(--radius-sm);font-size:13px;margin-top:10px;display:none}
+.quiz-fb.show{display:block}
+.quiz-fb.ok{background:var(--green-lt);color:var(--green)}
+.quiz-fb.no{background:var(--red-lt);color:var(--red)}
+
+/* Prediction */
+.pred-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.pred-row label{font-size:13px;font-weight:600;min-width:100px}
+.pred-row input{width:130px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:14px;font-family:inherit;text-align:center}
+.pred-row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+
+/* Assessment - Segmented Control */
+.assess-item{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 0;border-bottom:1px solid var(--border-lt);flex-wrap:wrap}
+.assess-item:last-child{border-bottom:none}
+.assess-item>span{flex:1;min-width:200px;font-size:14px;line-height:1.6;color:var(--txt)}
+.rating-g{display:inline-flex;background:var(--surface-alt);border:1px solid var(--border);border-radius:var(--radius-sm);padding:3px;flex-shrink:0}
+.r-btn{padding:6px 16px;font-size:13px;font-weight:600;font-family:inherit;color:var(--txt2);background:transparent;border:none;border-radius:6px;cursor:pointer;transition:var(--transition);min-width:54px}
+.r-btn:hover{color:var(--txt)}
+.r-btn.sel{background:var(--surface);color:var(--txt);box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.r-btn:nth-child(1).sel{color:var(--green);background:var(--green-lt)}
+.r-btn:nth-child(2).sel{color:#d97706;background:#fef3c7}
+.r-btn:nth-child(3).sel{color:var(--red);background:var(--red-lt)}
+
+/* Link Card */
+.link-card{display:flex;align-items:center;gap:14px;padding:14px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;color:var(--txt);transition:var(--transition);margin-bottom:12px}
+.link-card:hover{border-color:var(--accent);background:var(--surface-alt);transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,0.04)}
+.link-card .l-icon{font-size:24px;flex-shrink:0;width:42px;height:42px;display:flex;align-items:center;justify-content:center;background:var(--accent-lt);border-radius:var(--radius-sm)}
+.link-card .l-info{flex:1;min-width:0}
+.link-card .l-info h4{font-size:14px;font-weight:700;margin:0 0 2px;color:var(--txt)}
+.link-card .l-info p{font-size:13px;line-height:1.5;color:var(--txt2);margin:0}
+.link-card::after{content:"↗";font-size:14px;color:var(--txt3);flex-shrink:0;margin-left:4px}
+
+/* Btn */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;border:none;transition:var(--transition)}
+.btn-p{background:var(--accent);color:#fff}
+.btn-p:hover{background:var(--accent-dk);transform:translateY(-1px)}
+.btn-o{background:transparent;border:1px solid var(--border);color:var(--txt2)}
+.btn-o:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Page nav */
+.pg-nav{display:flex;justify-content:space-between;margin-top:44px;padding-top:20px;border-top:1px solid var(--border-lt)}
+.pg-nav .btn{min-width:130px;justify-content:center}
+
+/* Animation */
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.content>*{animation:fadeIn .35s ease both}
+
+
+/* ===== AIDT 추가 스타일 ===== */
+.home-link{display:inline-block;font-size:12px;color:var(--txt3);text-decoration:none;margin-bottom:8px}
+.home-link:hover{color:var(--accent)}
+.nav-item{display:flex;align-items:center}
+.nst{width:18px;text-align:center;font-size:12px;font-weight:800;color:var(--txt3)}
+.nst.done{color:var(--accent)}
+.nst.part{color:#f59e0b;font-size:16px}
+.nav-report{margin-top:2px}
+.prog-sub{font-size:11px;color:var(--txt3);margin-top:6px}
+.who{font-size:12px;color:var(--txt2);margin-top:10px;padding-top:10px;border-top:1px solid var(--border-lt)}
+.who a{color:var(--accent);cursor:pointer;text-decoration:underline;margin-left:4px}
+.pg-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.save-pill{font-size:11px;color:var(--accent-dk);background:var(--accent-lt);padding:3px 10px;border-radius:12px;white-space:nowrap;transition:transform .2s}
+.save-pill.flash{transform:scale(1.06)}
+.input-group.filled label::after{content:" ✓";color:var(--accent);font-weight:800}
+.auto-note{font-size:12px;color:var(--txt3);margin-top:8px}
+/* 퀴즈 */
+.quiz-q{align-items:flex-start}
+.q-badge{font-size:11px;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap;height:fit-content}
+.q-badge.ok{background:var(--green-lt);color:var(--accent-dk)}
+.q-badge.no{background:var(--red-lt);color:var(--red)}
+.q-badge.try{background:#fef3c7;color:#b45309}
+.quiz-opt .oc{font-size:11px;font-weight:700;color:var(--txt3)}
+.quiz-opt:not(.disabled):hover{border-color:var(--accent);background:var(--surface-alt)}
+.quiz-opt.disabled{cursor:default}
+.quiz-opt.wrong .oc,.quiz-opt.correct .oc{color:#fff}
+.concept-link{display:inline-block;color:var(--blue);cursor:pointer;font-size:13px;font-weight:600;text-decoration:none;margin-top:8px}
+.concept-link:hover{text-decoration:underline}
+/* 코드 */
+.code-blk{border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:18px}
+.code-hd{background:#2d2d2d;padding:8px 16px;display:flex;justify-content:space-between;align-items:center;color:#e0e0e0;font-size:13px;font-weight:600;font-family:monospace}
+.code-copy{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#e0e0e0;border-radius:4px;padding:5px 10px;font-size:12px;cursor:pointer}
+.code-bd{background:#1e1e1e;padding:16px;overflow-x:auto}
+.code-bd pre{margin:0;color:#d4d4d4;font-family:Consolas,Monaco,monospace;font-size:14px;line-height:1.6}
+.link-card.wokwi{background:linear-gradient(135deg,#fff3e0,#ffe0b2);border-color:#ffb74d}
+/* 리포트 */
+.rep-who{font-size:16px;font-weight:700}
+.rep-meta{font-size:13px;color:var(--txt3);margin-bottom:14px}
+.rep-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.rep-stat{background:var(--surface-alt);border:1px solid var(--border-lt);border-radius:var(--radius-sm);padding:12px}
+.rep-stat .l{font-size:12px;color:var(--txt3)}
+.rep-stat .v{font-size:24px;font-weight:800;color:var(--accent-dk);line-height:1.3}
+.rep-stat .s{font-size:11px;color:var(--txt2)}
+.rep-msg{font-weight:600;padding:10px 14px;border-radius:var(--radius-sm);background:var(--blue-lt)}
+.rep-msg.lv-상{background:var(--green-lt)}
+.rep-msg.lv-하{background:#fef3c7}
+.rec-list{margin:10px 0 12px 20px}
+.rec-list li{margin:4px 0}
+.rec-list .concept-link{margin-top:0}
+.rep-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.rep-tbl th,.rep-tbl td{border-bottom:1px solid var(--border-lt);padding:7px 6px;text-align:left;vertical-align:top}
+.rep-tbl th{color:var(--txt3);font-weight:600;font-size:12px}
+.rep-tbl .concept-link{margin:0;font-weight:500}
+.r-ok{color:var(--accent-dk);font-weight:700}.r-mid{color:#d97706;font-weight:700}.r-no{color:var(--red);font-weight:700}
+.muted{color:var(--txt3)}.small{font-size:12px}
+details.blk-card summary{cursor:pointer}
+.ans-item{padding:10px 0;border-bottom:1px solid var(--border-lt)}
+.ans-q{font-size:12px;color:var(--txt3);margin-bottom:3px}
+.ans-a{font-size:14px}
+.rep-actions{display:flex;gap:8px;flex-wrap:wrap}
+/* 모달·토스트 */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:var(--surface);border-radius:var(--radius);padding:22px;max-width:420px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal h3{margin-bottom:4px}
+.pf-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}
+.pf-grid label{font-size:12px;color:var(--txt2);display:flex;flex-direction:column;gap:4px}
+.pf-grid label:first-child,.pf-grid label.full{grid-column:1/-1}
+.pf-grid input{padding:8px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:14px}
+.modal-btns{display:flex;justify-content:flex-end;gap:8px}
+.modal-btns .btn{min-width:0}
+.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,20px);background:#1f2937;color:#fff;padding:10px 18px;border-radius:20px;font-size:13px;opacity:0;transition:.3s;z-index:600}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(max-width:900px){
+  .content{padding-top:62px!important}
+  .rep-stats{grid-template-columns:1fr 1fr}
+}
+@media print{
+  .sidebar,.mobile-tog,.pg-nav,.rep-actions,.save-pill{display:none!important}
+  .content{margin-left:0!important;max-width:none!important;padding:0!important}
+  body{background:#fff}
+  details{display:block}details>*{display:block}
+}
+.rep-stat .v small{font-size:12px;font-weight:600;color:var(--txt3);margin-left:3px}
+/* 영상 */
+.vid-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px}
+.vid-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.vid-card.seen{border-color:var(--accent)}
+.vid-thumb{position:relative;aspect-ratio:16/9;background:#111 center/cover no-repeat;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.vid-thumb iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.vid-play{width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.6);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;padding-left:4px;transition:.2s}
+.vid-thumb:hover .vid-play{background:#e11d48;transform:scale(1.08)}
+.vid-cap{display:flex;align-items:center;gap:8px;padding:9px 12px;font-size:13px}
+.vid-cap a{margin-left:auto;font-size:12px;color:var(--txt3);text-decoration:none}
+.vid-cap a:hover{color:var(--accent)}
+.vid-seen{display:none;font-size:11px;font-weight:700;color:var(--accent-dk);background:var(--accent-lt);padding:1px 8px;border-radius:10px}
+.vid-card.seen .vid-seen{display:inline}
+.submit-box{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;border:2px solid var(--accent)!important;background:var(--accent-lt)!important}
+.submit-box.done{border-color:var(--border)!important;background:var(--surface)!important}
+.submit-box .btn:disabled{opacity:.6;cursor:wait}
+@media(max-width:900px){.vid-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="mobile-tog" onclick="document.querySelector('.sidebar').classList.toggle('open')">☰</div>
+<div class="app">
+<aside class="sidebar">
+  <div class="sidebar-hd">
+    <h1>AIDT 일반고 수학 · Ⅱ-5</h1>
+    <div class="topic">백제 복식의 대칭 구조 분석</div>
+  </div>
+  <nav class="sidebar-nav" id="nav"></nav>
+  <div class="sidebar-ft">
+    <div class="prog-label">진행률 <span id="pTxt">0%</span></div>
+    <div class="prog-bg"><div class="prog-fill" id="pBar" style="width:0%"></div></div>
+  </div>
+</aside>
+<main class="content" id="main"></main>
+</div>
+<script src="../aidt-config.js"></script>
+<script>
+const META = {"id": "math-II-5", "subject": "수학", "code": "Ⅱ-5", "module": "교과 융합 모듈", "n": 5, "roman": "II", "videos": ["pS7Eay_p5fY", "IvpkvUXF2Vs", "IaKN-Cwom9s"]};
+const D = {"title": "백제 복식의 대칭 구조 분석", "pages": [{"id": "p1", "cat": "도입", "icon": "🎯", "title": "학습목표", "blocks": [{"t": "html", "v": "\n          <div class=\"blk\" style=\"text-align:center;padding:20px 0\">\n            <div style=\"font-size:12px;color:var(--accent);font-weight:700;letter-spacing:2px;margin-bottom:6px\">수학 × 정보 융합 · 대칭 구조 분석<\/div>\n            <h2 style=\"font-size:28px;font-weight:900;margin-bottom:8px\">백제 복식의 대칭 구조 분석<\/h2>\n            <div style=\"display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:15px\">\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--accent-lt);color:var(--accent-dk)\">수학(대칭이동)<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--blue-lt);color:var(--blue)\">정보(Python)<\/span>\n              <span style=\"padding:4px 12px;border-radius:14px;font-size:11px;font-weight:600;background:var(--purple-lt);color:var(--purple)\">Desmos 시각화<\/span>\n            <\/div>\n          <\/div>\n        "}, {"t": "objectives", "items": ["백제 복식의 전통 문양과 형태 속에 존재하는 대칭 구조의 수학적 원리를 설명할 수 있다.", "실제 복식 이미지를 데이터화하여 대칭축, 회전각, 패턴 비율을 시각적으로 분석할 수 있다.", "수학적 개념을 정보기술 도구를 통해 디지털 복원 및 시각화하는 융합적 사고를 기를 수 있다."]}]}, {"id": "p2", "cat": "도입", "icon": "💭", "title": "생각해요", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 백제 복식의 대칭 구조를 찾아보자<\/h3>\n          <p>백제 복식은 단순한 의복이 아니라, 당대의 미적 감각과 수학적 질서가 조화를 이루어 만들어진 예술적 구조물이다. 특히 복식의 좌우 대칭은 미적 균형뿐 아니라 신분과 위계의 상징적 의미를 지니고 있다.<\/p>\n          <p>그렇다면 우리는 백제 복식의 대칭을 수학적으로 분석하고 시각화할 수 있을까? 복식의 문양과 형태 속에 숨겨진 수학적 규칙을 찾아보며, 고대의 아름다움을 현대적 시각으로 이해해 보자.<\/p>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk blk-card\">\n          <h3>▶ 생각해 볼 질문<\/h3>\n          <ul>\n            <li>백제 복식에서 대칭 구조는 왜 중요한 미적 요소로 작용했을까?<\/li>\n            <li>복식의 대칭축을 찾으려면 어떤 수학적 개념을 활용할 수 있을까?<\/li>\n            <li>대칭을 좌표평면에 나타낼 때, 어떤 점을 기준으로 반사나 회전을 표현할 수 있을까?<\/li>\n            <li>전통 복식의 대칭 구조를 수학적으로 분석하면, 현대 디자인에 어떤 아이디어를 줄 수 있을까?<\/li>\n          <\/ul>\n        <\/div>"}, {"t": "input", "label": "▶ 백제 복식에서 대칭 구조는 왜 중요한 미적 요소였을지 생각을 적어 보자.", "ph": "예: 좌우 균형이 사람의 눈에 안정감을 주고, 신분을 나타내는 상징이 되었을 것이다.", "rows": 2}, {"t": "input", "label": "▶ 복식의 대칭축을 찾을 때 활용할 수 있는 수학적 개념을 적어 보자.", "ph": "예: 축대칭, 점대칭, 회전 대칭, y축 대칭 등", "rows": 2}]}, {"id": "p3", "cat": "알아봐요", "icon": "📖", "title": "1. 대칭의 이해", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 대칭의 이해<\/h3>\n          <p>백제 복식의 좌우 문양을 관찰하면, 한쪽의 형태를 축을 기준으로 반사시키면 다른 쪽이 완성되는 구조임을 알 수 있다. 이는 함수 그래프에서 <strong>y = f(x)<\/strong>를 y축에 대해 반사했을 때, <strong>y = f(−x)<\/strong>가 되는 원리와 같다. 즉, 복식의 좌우 균형은 수학적으로 '축대칭 함수'의 개념으로 설명할 수 있다.<\/p>\n        <\/div>"}, {"t": "callout", "variant": "blue", "title": "학습 효과", "body": "① 전통 복식의 문양 속에 숨어 있는 대칭 원리를 함수의 반사 개념과 연계하여 이해할 수 있음.<br>② 시각적 이미지와 수학 공식을 연계해 논리적 사고력을 향상시킬 수 있음."}, {"t": "cards", "items": [{"front": "좌우 대칭\n(축대칭)", "back": "y축을 기준으로 좌우가 같은 형태. y = f(x)를 y축 반사 시 y = f(−x)가 됨"}, {"front": "회전 대칭", "back": "특정 점을 중심으로 일정 각도 회전시켰을 때 같은 모양이 나타나는 대칭"}, {"front": "점 대칭", "back": "원점(또는 임의의 점)을 기준으로 180° 회전했을 때 일치하는 대칭"}, {"front": "평행이동", "back": "도형을 일정한 방향·거리만큼 이동시키는 변환. 모양과 크기는 변하지 않음"}]}, {"t": "html", "v": "<div class=\"blk\">\n          <h4>▶ 참고 자료<\/h4>\n        <\/div>"}, {"t": "link", "url": "https://buyeo.museum.go.kr", "icon": "🏛️", "title": "국립부여박물관 디지털 아카이브", "desc": "백제 복식과 문양 이미지를 검색하고 탐구할 수 있는 공식 디지털 자료실"}, {"t": "link", "url": "https://www.khanacademy.org/math/geometry-home/transformations", "icon": "📐", "title": "Khan Academy – Transformations", "desc": "대칭·회전·평행이동 개념을 시각적으로 학습할 수 있는 무료 인터랙티브 강의"}]}, {"id": "p4", "cat": "알아봐요", "icon": "📖", "title": "2. 좌표평면에서의 대칭 표현", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 좌표평면에서의 대칭 표현<\/h3>\n          <p>복식의 문양 한쪽을 좌표평면 위에서 함수식 <strong>y = f(x)<\/strong>로 표현하면, 대칭축을 기준으로 반대편 문양은 <strong>y = f(−x)<\/strong> 또는 <strong>y = −f(x)<\/strong> 형태로 나타낼 수 있다. Desmos를 이용하면 이 대칭을 시각적으로 표현하고, 문양의 축이나 회전 중심을 수치로 조정할 수 있다.<\/p>\n          <h4>주요 대칭이동 정리<\/h4>\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin-top:8px\">\n            <thead>\n              <tr style=\"background:var(--accent-lt)\">\n                <th style=\"padding:8px 12px;border:1px solid var(--border);text-align:left\">대칭 기준<\/th>\n                <th style=\"padding:8px 12px;border:1px solid var(--border);text-align:left\">점 (x, y)의 이동<\/th>\n                <th style=\"padding:8px 12px;border:1px solid var(--border);text-align:left\">함수의 변화<\/th>\n              <\/tr>\n            <\/thead>\n            <tbody>\n              <tr>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">x축 대칭<\/td>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">(x, y) → (x, −y)<\/td>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">y = f(x) → y = −f(x)<\/td>\n              <\/tr>\n              <tr style=\"background:var(--surface-alt)\">\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">y축 대칭<\/td>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">(x, y) → (−x, y)<\/td>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">y = f(x) → y = f(−x)<\/td>\n              <\/tr>\n              <tr>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">원점 대칭<\/td>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">(x, y) → (−x, −y)<\/td>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">y = f(x) → y = −f(−x)<\/td>\n              <\/tr>\n              <tr style=\"background:var(--surface-alt)\">\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">직선 y = x 대칭<\/td>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">(x, y) → (y, x)<\/td>\n                <td style=\"padding:8px 12px;border:1px solid var(--border)\">역함수 관계<\/td>\n              <\/tr>\n            <\/tbody>\n          <\/table>\n        <\/div>"}, {"t": "callout", "variant": "green", "title": "활용 포인트", "body": "① 함수 대칭의 원리를 시각적으로 이해하고, 문화유산 이미지에 직접 적용 가능.<br>② Desmos 그래프 조작을 통해 수학적 추상 개념을 구체적으로 시각화함."}, {"t": "link", "url": "https://www.desmos.com/calculator", "icon": "📊", "title": "Desmos Graphing Calculator", "desc": "함수 대칭을 직접 입력하고 시각화할 수 있는 온라인 그래프 계산기"}, {"t": "link", "url": "https://mathigon.org/course/transformations/symmetry", "icon": "🔷", "title": "Mathigon Transform Explorer", "desc": "대칭·회전·평행이동을 인터랙티브하게 탐구할 수 있는 수학 학습 플랫폼"}]}, {"id": "p5", "cat": "알아봐요", "icon": "📖", "title": "3. 복식 문양의 수학적 패턴 인식", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 복식 문양의 수학적 패턴 인식<\/h3>\n          <p>백제 복식 문양의 반복성을 수학적으로 분석하면, 일정한 주기마다 문양이 반복되거나 특정 축을 기준으로 동일한 패턴이 이어지는 것을 확인할 수 있다. 이 반복 간격을 수학적으로는 <strong>주기 함수(periodic function)<\/strong>의 개념으로 설명할 수 있으며, Python의 그래프 도구를 통해 이를 시각화하면 문양의 수학적 규칙을 정량적으로 확인할 수 있다.<\/p>\n        <\/div>"}, {"t": "callout", "variant": "purple", "title": "적용 의의", "body": "① 문화유산의 미적 구조를 정량적으로 이해하며, 수학 개념이 예술적 디자인에 활용될 수 있음을 체험함.<br>② 반복과 주기의 개념을 실물 이미지 데이터 분석으로 확장하여 실용적 사고력을 강화함."}, {"t": "html", "v": "<div class=\"blk blk-card\">\n          <h3>★ 백제 복식의 대칭은 어떻게 수학적으로 설명할 수 있을까?<\/h3>\n          <p>우리가 알고 있는 백제의 복식은 단순히 아름다운 옷차림이 아니라, 당대의 미적 감각과 수학적 질서가 결합된 결과물이다. 왕과 귀족의 복식에는 일정한 축을 기준으로 한 좌우대칭이 반복적으로 등장하며, 이러한 균형감은 '조화로운 사회 질서'와 '권위의 상징'을 표현했다.<\/p>\n          <p>복식의 좌우 형태를 좌표평면에 나타내면, 하나의 점이 x축의 반대편에 대칭되는 '함수의 반사'로 표현할 수 있다. 또한 회전이나 반복되는 문양은 주기함수나 회전 대칭 개념으로 모델링할 수 있다. 예를 들어, 백제 관복의 문양을 <strong>y = f(x)<\/strong>로 나타낸다면, 그 대칭 형태는 <strong>y = f(−x)<\/strong>로 표현할 수 있다.<\/p>\n          <p>이는 단순한 그림의 좌우 복제가 아니라, 문화유산 속에서 수학적 질서가 구현된 시각적 구조임을 보여준다. 결국, 백제 복식의 대칭을 분석하는 일은 미적 감각을 넘어 수학·디자인·문화가 융합된 사고를 기르는 탐구가 된다.<\/p>\n        <\/div>"}, {"t": "tabs", "tabs": [{"label": "도구 소개 — Desmos", "content": "<p><strong>Desmos Graphing Calculator<\/strong>는 온라인 기반 그래프 시각화 도구로, 수학적 함수를 시각적으로 표현하고 도형의 대칭·회전 관계를 직관적으로 탐구할 수 있다.<\/p><ul><li>드래그·입력식 기반의 인터랙티브 조작을 지원하여 복잡한 함수나 문양도 쉽게 표현 가능<\/li><li>본 수업에서는 백제 복식의 문양을 Desmos 좌표평면에 구현하여 대칭축, 회전 대칭, 이동 대칭의 성질을 탐구함<\/li><li>학습자는 수학 개념(대칭, 합동 등)을 시각적으로 체험하며, 전통 복식의 미적 구조를 수학적으로 이해할 수 있음<\/li><\/ul>"}, {"label": "도구 소개 — Google Colab", "content": "<p><strong>Google Colab<\/strong>은 클라우드 기반 Python 실행 환경으로, 설치 없이 웹 브라우저에서 코딩과 시각화를 수행할 수 있다.<\/p><ul><li>NumPy, OpenCV, Matplotlib 등의 라이브러리를 활용해 복식 이미지의 좌우 패턴을 분석하고, 대칭 정도를 수치화함<\/li><li>본 수업에서는 복식 문양 이미지를 데이터화하여 자동으로 대칭선을 검출하고, 그래프로 시각화하는 실습을 진행함<\/li><li>수학적 원리(대칭, 좌표 변환)를 실제 프로그래밍과 연결하며, 데이터 기반의 수학적 사고력과 문제 해결력을 함께 향상시킴<\/li><\/ul>"}, {"label": "도구 소개 — ChatGPT", "content": "<p><strong>ChatGPT<\/strong>는 학습 피드백과 보고서 구성을 지원하는 AI 도구다.<\/p><ul><li>학습 과정 중 복식 구조 해석에 도움을 받을 수 있음<\/li><li>표현 문장 수정 및 요약에 활용<\/li><li>분석 결과를 정리하고 발표 자료를 작성할 때 아이디어를 얻을 수 있음<\/li><\/ul>"}]}]}, {"id": "p6", "cat": "활동해요", "icon": "✏️", "title": "1. 백제 복식 문양 속 대칭 구조 탐색", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 백제 복식 문양 속 대칭 구조 탐색<\/h3>\n          <p>국립부여박물관·국립공주박물관 홈페이지에서 백제 복식 이미지를 찾아보고, 복식 속에 숨겨진 대칭의 원리를 탐색해 보자.<\/p>\n        <\/div>"}, {"t": "steps", "title": "활동 순서", "items": [{"title": "복식 이미지 탐색", "desc": "국립부여박물관(buyeo.museum.go.kr) 또는 국립공주박물관 홈페이지에서 백제 복식 이미지를 검색하여 찾아보자."}, {"title": "대칭 축 표시", "desc": "복식의 좌우 문양이나 패턴을 관찰하여 '대칭 축'이 존재하는 부분을 표시해 보자."}, {"title": "대칭 종류 분류 및 정리", "desc": "대칭의 종류(좌우 대칭, 회전 대칭, 점 대칭 등)를 구분하여 아래 표에 정리해 보자."}]}, {"t": "html", "v": "<div class=\"blk blk-card\">\n          <h4>대칭 구조 분류표<\/h4>\n          <table style=\"width:100%;border-collapse:collapse;font-size:13px;margin-top:8px\">\n            <thead>\n              <tr style=\"background:var(--accent-lt)\">\n                <th style=\"padding:8px 12px;border:1px solid var(--border);text-align:left\">복식 부위 / 문양<\/th>\n                <th style=\"padding:8px 12px;border:1px solid var(--border);text-align:left\">대칭 종류<\/th>\n                <th style=\"padding:8px 12px;border:1px solid var(--border);text-align:left\">특징 설명<\/th>\n              <\/tr>\n            <\/thead>\n            <tbody>\n              <tr><td style=\"padding:10px 12px;border:1px solid var(--border)\"> <\/td><td style=\"padding:10px 12px;border:1px solid var(--border)\"> <\/td><td style=\"padding:10px 12px;border:1px solid var(--border)\"> <\/td><\/tr>\n              <tr style=\"background:var(--surface-alt)\"><td style=\"padding:10px 12px;border:1px solid var(--border)\"> <\/td><td style=\"padding:10px 12px;border:1px solid var(--border)\"> <\/td><td style=\"padding:10px 12px;border:1px solid var(--border)\"> <\/td><\/tr>\n              <tr><td style=\"padding:10px 12px;border:1px solid var(--border)\"> <\/td><td style=\"padding:10px 12px;border:1px solid var(--border)\"> <\/td><td style=\"padding:10px 12px;border:1px solid var(--border)\"> <\/td><\/tr>\n            <\/tbody>\n          <\/table>\n        <\/div>"}, {"t": "input", "label": "1. 찾은 백제 복식 이미지의 출처(URL 또는 자료명)와 특징을 적어 보자.", "ph": "예: 국립부여박물관 – 백제 귀족 복식 복원 이미지 / 특징: 상의 좌우 문양이 완벽히 대칭", "rows": 2}, {"t": "input", "label": "2. 복식의 좌우 문양이나 패턴을 관찰하고, '대칭 축'이 존재하는 부분을 설명해 보자.", "ph": "예: 상의 중앙부를 기준으로 좌우 소매의 문양이 y축 대칭을 이루고 있다.", "rows": 2}, {"t": "input", "label": "3. 관찰한 복식에서 발견한 대칭의 종류와 그 특징을 정리해 보자.", "ph": "예: 좌우 대칭 – 옷깃의 문양이 y축 기준 반사 / 회전 대칭 – 원형 장식이 90° 간격으로 반복", "rows": 3}]}, {"id": "p7", "cat": "활동해요", "icon": "💻", "title": "2. Desmos로 복식 대칭 표현하기", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ Desmos로 복식 대칭 표현하기<\/h3>\n          <p>관찰한 복식 문양의 일부를 Desmos에 나타내어 좌표평면 위에서 시각화하고, 수식으로 대칭을 표현해 보자.<\/p>\n        <\/div>"}, {"t": "callout", "variant": "blue", "title": "💡 Desmos 활용 방법", "body": "① desmos.com/calculator 에 접속한다.<br>② 왼쪽 입력창에 함수식(예: y = x²)을 입력하면 자동으로 그래프가 그려진다.<br>③ 같은 함수의 대칭 형태(예: y = (−x)²)를 추가로 입력하여 대칭 관계를 비교한다.<br>④ 슬라이더를 추가해 문양의 축이나 회전 중심을 수치로 조정해 볼 수 있다."}, {"t": "steps", "title": "활동 순서", "items": [{"title": "문양 좌표 표현", "desc": "관찰한 복식 문양의 일부를 Desmos에 나타내어 좌표평면 위에서 시각화해 보자."}, {"title": "y축 / x축 기준 반사", "desc": "y축 혹은 x축을 기준으로 반사하여 복식의 좌우 균형을 완성해 보자."}, {"title": "수식 표현 및 설명", "desc": "대칭 함수의 형태를 수식으로 표현하고, 그 의미를 친구들과 함께 설명해 보자."}]}, {"t": "input", "label": "1. Desmos에 표현한 복식 문양의 함수식을 적어 보자.", "ph": "예: y = x², y = (−x)² 를 입력하여 y축 대칭 확인", "rows": 2}, {"t": "input", "label": "2. y축 또는 x축을 기준으로 반사한 결과를 설명하고, 수식을 적어 보자.", "ph": "예: y = f(x)를 y축 대칭하면 y = f(−x)가 되어 좌우가 대칭됨을 확인했다.", "rows": 2}, {"t": "input", "label": "3. 대칭 함수의 형태를 수식으로 표현하고, 그 수학적 의미를 설명해 보자.", "ph": "예: y = f(−x)는 f(x)를 y축에 대해 반사한 형태로, 복식의 좌우 균형을 표현한다.", "rows": 3}]}, {"id": "p8", "cat": "활동해요", "icon": "💡", "title": "3. Python으로 문양 대칭 자동 분석", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ Python으로 문양 대칭 자동 분석<\/h3>\n          <p>Google Colab 환경에서 Python의 OpenCV 라이브러리를 활용하여 복식 문양 이미지의 대칭 비율을 자동으로 분석하고 시각화해 보자.<\/p>\n        <\/div>"}, {"t": "callout", "variant": "blue", "title": "💡 Google Colab 접속 방법", "body": "① colab.research.google.com 에 접속한다.<br>② 구글 계정으로 로그인 후 '새 노트북'을 클릭한다.<br>③ 아래 코드를 셀에 붙여넣고 ▶ 버튼으로 실행한다."}, {"t": "steps", "title": "활동 순서", "items": [{"title": "복식 이미지 불러오기", "desc": "Colab 환경에서 Python의 OpenCV 라이브러리를 사용해 복식 문양 이미지를 불러오자."}, {"title": "대칭 비율 계산 및 시각화", "desc": "이미지의 대칭 비율을 계산하고, 좌우 픽셀 차이를 시각화하여 그래프로 표시해 보자."}, {"title": "분석 결과 정리", "desc": "분석 결과를 기반으로, 복식의 미적 조화가 어떤 수학적 규칙에 의해 만들어졌는지 정리해 보자."}]}, {"t": "code", "lang": "Python (Google Colab)", "code": "import cv2\nimport numpy as np\nimport matplotlib.pyplot as plt\nfrom google.colab import files\n\n# 이미지 업로드\nuploaded = files.upload()\nfilename = list(uploaded.keys())[0]\n\n# 이미지 불러오기 및 그레이스케일 변환\nimg = cv2.imread(filename, cv2.IMREAD_GRAYSCALE)\nh, w = img.shape\n\n# 좌우 분할\nleft = img[:, :w//2]\nright = img[:, w//2:]\n\n# 오른쪽 절반을 좌우 반전하여 왼쪽과 비교\nright_flipped = cv2.flip(right, 1)\n\n# 좌우 픽셀 차이 계산\ndiff = cv2.absdiff(left, right_flipped)\nsymmetry_score = 1 - (np.sum(diff) / (255 * left.size))\n\nprint(f\"대칭 점수: {symmetry_score:.4f} (1에 가까울수록 완벽한 대칭)\")\n\n# 시각화\nfig, axes = plt.subplots(1, 3, figsize=(12, 4))\naxes[0].imshow(img, cmap='gray')\naxes[0].set_title('원본 이미지')\naxes[1].imshow(diff, cmap='hot')\naxes[1].set_title('좌우 픽셀 차이')\naxes[2].bar(['대칭 점수'], [symmetry_score], color='steelblue')\naxes[2].set_ylim(0, 1)\naxes[2].set_title(f'대칭 점수: {symmetry_score:.4f}')\nplt.tight_layout()\nplt.show()"}, {"t": "input", "label": "1. 이미지 분석 결과로 나온 대칭 점수를 기록하고, 수치가 의미하는 바를 설명해 보자.", "ph": "예: 대칭 점수 0.92 → 약 92%의 픽셀이 좌우 대칭을 이루고 있음을 의미함", "rows": 2}, {"t": "input", "label": "2. 좌우 픽셀 차이 시각화(히트맵)에서 차이가 두드러지는 부분은 어디였는가?", "ph": "예: 복식의 소매 끝 장식 부분에서 차이가 컸다. 이는 해당 부분이 완벽한 대칭이 아님을 보여준다.", "rows": 2}, {"t": "input", "label": "3. 분석 결과를 바탕으로, 복식의 미적 조화가 어떤 수학적 규칙에 의해 만들어졌는지 정리해 보자.", "ph": "예: 대칭 점수가 높을수록 장인이 정밀한 비율 계산을 사용했음을 의미하며, 이는 함수의 반사 개념과 일치한다.", "rows": 3}]}, {"id": "p9", "cat": "활동해요", "icon": "🎨", "title": "4. Canva로 복식 대칭 포스터 제작", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ Canva로 복식 대칭 포스터 제작<\/h3>\n          <p>지금까지 분석한 백제 복식의 대칭 구조를 Canva를 활용하여 포스터 형태로 시각화하고, 결과물을 발표해 보자.<\/p>\n        <\/div>"}, {"t": "callout", "variant": "green", "title": "포스터 구성 요소 (필수 포함)", "body": "① 백제 복식 이미지와 대칭 축 표시<br>② Desmos로 시각화한 대칭 함수 그래프<br>③ Python 분석으로 얻은 대칭 점수 및 시각화 결과<br>④ 수학적 대칭 개념 설명 (수식 포함)<br>⑤ 분석을 통해 깨달은 점 또는 소감"}, {"t": "steps", "title": "제작 순서", "items": [{"title": "Canva 접속 및 템플릿 선택", "desc": "canva.com에 접속하여 '포스터' 또는 'A3 세로' 형식의 템플릿을 선택한다."}, {"title": "분석 자료 정리", "desc": "Desmos 그래프 캡처, Python 분석 결과 이미지, 복식 이미지 등 필요한 자료를 준비한다."}, {"title": "포스터 디자인", "desc": "대칭 구조의 수학적 원리를 시각적으로 표현하여 포스터를 완성한다."}, {"title": "발표 준비 및 발표", "desc": "완성된 포스터를 바탕으로 발표 내용을 정리하고, 모둠별로 발표한다."}]}, {"t": "input", "label": "▶ 포스터 제작 후 소감 및 배운 점을 적어 보자.", "ph": "예: 백제 복식의 문양이 y축 대칭의 수학적 원리로 설명된다는 점이 흥미로웠다. 수학과 미술이 이렇게 연결될 수 있다는 것을 처음 알았다.", "rows": 3}]}, {"id": "p10", "cat": "정리", "icon": "✅", "title": "스스로 진단하기", "blocks": [{"t": "assessment", "title": "학습 점검표", "ratings": ["잘함", "보통", "미흡"], "items": ["복식 문양의 대칭 구조를 수학적으로 설명할 수 있다.", "Desmos를 활용하여 좌표평면상에 대칭을 정확히 표현할 수 있다.", "Python을 사용해 이미지의 대칭 정도를 수치로 분석할 수 있다.", "조별 협업을 통해 복식의 미적 특징을 논리적으로 해석할 수 있다."]}]}, {"id": "p11", "cat": "정리", "icon": "❓", "title": "활동퀴즈 1. 대칭의 개념 이해", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 대칭의 개념 이해<\/h3><\/div>"}, {"t": "quiz", "num": "01", "q": "다음 중 대칭 구조의 특징으로 옳은 것은?", "opts": ["한쪽 모양을 임의로 변형해야 다른 쪽이 완성된다.", "대칭축을 기준으로 서로 일치하지 않는다.", "좌우가 서로 겹치지 않도록 구성된다.", "대칭축을 기준으로 반사하면 서로 일치한다.", "중심을 기준으로 회전해도 모양이 달라진다."], "ans": 3, "ok": "정답입니다! 대칭은 축을 기준으로 반사하면 두 도형이 완전히 겹치는 성질입니다.", "no": "다시 생각해 봅시다. '대칭축을 기준으로 반사하면'이라는 핵심 조건에 집중해 보세요."}, {"t": "quiz", "num": "02", "q": "다음 중 대칭이 아닌 구조를 가진 예시는?", "opts": ["나비의 날개", "사람의 얼굴", "달팽이 껍데기", "도자기 무늬", "한옥 창살"], "ans": 2, "ok": "정답입니다! 달팽이 껍데기는 나선형 구조로, 좌우 대칭이 아닌 비대칭 구조입니다.", "no": "힌트: 나선형으로 감기는 구조는 좌우가 서로 다릅니다."}, {"t": "quiz", "num": "03", "q": "함수 y = f(x)가 y축 대칭일 때의 대응식으로 옳은 것은?", "opts": ["y = f(x + 1)", "y = f(−x)", "y = −f(x)", "y = f(x) − 1", "y = f(|x|)"], "ans": 1, "ok": "정답입니다! y축 대칭은 x를 −x로 바꾼 y = f(−x)입니다.", "no": "힌트: y축 대칭이동은 x좌표의 부호를 바꾸는 변환입니다."}]}, {"id": "p12", "cat": "정리", "icon": "❓", "title": "활동퀴즈 2. 좌표평면과 패턴 분석", "blocks": [{"t": "html", "v": "<div class=\"blk\"><h3>▶ 좌표평면에서의 대칭 표현<\/h3><\/div>"}, {"t": "quiz", "num": "04", "q": "점 (3, 2)를 x축 대칭 이동시킨 점의 좌표는?", "opts": ["(3, 2)", "(3, −2)", "(−3, 2)", "(−3, −2)", "(2, 3)"], "ans": 1, "ok": "정답입니다! x축 대칭은 y좌표의 부호를 바꾸므로 (3, 2) → (3, −2)입니다.", "no": "힌트: x축 대칭이동은 y좌표의 부호만 바뀝니다."}, {"t": "quiz", "num": "05", "q": "회전 대칭이 있는 도형의 예로 옳은 것은?", "opts": ["직각삼각형", "사다리꼴", "부채꼴", "정사각형", "평행사변형"], "ans": 3, "ok": "정답입니다! 정사각형은 90°, 180°, 270°, 360° 회전 대칭을 가지는 도형입니다.", "no": "힌트: 특정 각도로 회전했을 때 원래 모양과 완전히 겹치는 도형을 찾아보세요."}, {"t": "quiz", "num": "06", "q": "좌표평면에서 점 (x, y)를 원점 대칭시킨 결과는?", "opts": ["(−x, y)", "(x, −y)", "(−x, −y)", "(y, x)", "(x, y)"], "ans": 2, "ok": "정답입니다! 원점 대칭은 x좌표와 y좌표 모두 부호가 바뀌어 (−x, −y)가 됩니다.", "no": "힌트: 원점 대칭은 x축 대칭과 y축 대칭을 동시에 적용한 것과 같습니다."}, {"t": "html", "v": "<div class=\"blk\"><h3>▶ 문양 패턴의 수학적 분석<\/h3><\/div>"}, {"t": "quiz", "num": "07", "q": "백제 복식 문양의 반복 주기를 함수로 나타낼 때 가장 적절한 형태는?", "opts": ["일차 함수", "이차 함수", "지수 함수", "사인 함수", "로그 함수"], "ans": 3, "ok": "정답입니다! 일정 주기로 반복되는 패턴은 주기 함수인 사인(sin) 함수로 모델링하는 것이 가장 적절합니다.", "no": "힌트: '주기'를 가지는, 즉 일정 간격마다 같은 값이 반복되는 함수를 찾아보세요."}, {"t": "quiz", "num": "08", "q": "반복되는 복식 문양의 대칭성과 관련된 수학적 개념은?", "opts": ["극한", "미분", "주기성", "확률", "점근선"], "ans": 2, "ok": "정답입니다! 일정 간격으로 반복되는 문양의 특성은 수학의 '주기성' 개념으로 설명할 수 있습니다.", "no": "힌트: 일정한 간격으로 같은 패턴이 반복된다는 성질과 관련된 개념입니다."}]}, {"id": "p13", "cat": "정리", "icon": "📚", "title": "읽기 자료", "blocks": [{"t": "tabs", "tabs": [{"label": "★ 백제 복식의 미적 특징", "content": "<p>백제의 복식은 신분과 위계를 시각적으로 구분하기 위한 상징성을 지녔다. 특히 왕과 귀족의 복식에는 좌우 균형과 반복적 문양이 강조되어 있으며, 이는 미학적으로 '조화'와 '질서'를 중시한 백제의 미적 감각을 보여준다. 복식의 좌우가 완벽히 대칭을 이루는 구조는 당시 장인들이 정확한 비율 계산과 대칭 원리를 의식적으로 사용했음을 의미한다.<\/p>"}, {"label": "★ 대칭 구조의 수학적 원리", "content": "<p>복식 문양의 대칭은 수학적으로는 함수의 반사(Reflection) 개념과 유사하다. 예를 들어, 한쪽 문양을 <strong>y = f(x)<\/strong>로 표현하면, 그 반대쪽 문양은 <strong>y = f(−x)<\/strong>로 나타낼 수 있다. 이는 좌표평면상에서 y축 대칭을 이루는 기본적인 수학 구조이다. 백제 복식은 이러한 대칭 원리를 시각적으로 구현한 예로, '미학'과 '수학'의 융합을 보여준다.<\/p>"}, {"label": "★ Desmos로 보는 복식의 대칭", "content": "<p>Desmos를 활용하면 복식의 한쪽 형태를 그래프로 표현한 뒤, y축을 기준으로 반사시켜 다른 쪽 형태를 완성할 수 있다. 이 과정에서 학생들은 단순히 그림을 보는 것이 아니라, 수학적으로 대칭축, 대응점, 함수식을 함께 학습하게 된다. 이를 통해 복식 문양의 '좌우 동일성'을 시각화하고, 전통 디자인을 수학적으로 해석할 수 있는 사고력을 기를 수 있다.<\/p>"}, {"label": "★ 복식 문양의 반복성과 비율", "content": "<p>백제 복식에는 일정 간격으로 반복되는 문양이 많다. 이는 주기 함수(periodic function)의 형태로 표현될 수 있으며, 수학적으로는 문양의 반복 주기를 2π나 그 배수로 나타낼 수 있다. Python을 이용하면 문양 이미지의 픽셀 분포를 분석하여 좌우 비율이나 반복 간격을 자동으로 계산할 수 있다. 이러한 접근은 전통 복식의 조형미를 '데이터 기반 시각화'로 재해석하는 과정이 된다.<\/p>"}, {"label": "★ 문화유산 연구와 수학의 융합", "content": "<p>오늘날 문화유산 복원과 분석은 3D 스캔, 인공지능 분석 등 첨단 기술과 수학적 알고리즘을 기반으로 이루어진다. 복식의 대칭 구조를 수학적으로 이해하는 학습은 문화재 연구자, 복원 전문가, 디지털 큐레이터 등 다양한 진로와도 연결된다. 이는 단순한 미적 감상 단계를 넘어, 과학적 사고로 문화유산을 탐구하는 융합형 학습의 한 예라 할 수 있다.<\/p>"}]}, {"t": "html", "v": "<div class=\"blk\"><h4>✓ 읽고 생각해 보기<\/h4><\/div>"}, {"t": "input", "label": "❶ 백제 복식의 대칭 구조가 단순한 미적 선택이 아닌 수학적 원리의 구현이라는 관점에 대해 어떻게 생각하는가?", "ph": "예: 장인들이 수학적 개념을 명시적으로 알지는 못했더라도, 반복된 경험과 관찰을 통해 대칭 원리를 직관적으로 활용했을 것이라 생각한다.", "rows": 2}, {"t": "input", "label": "❷ 이번 학습에서 수학이 문화유산 연구에 어떻게 활용될 수 있다는 것을 알게 되었는가?", "ph": "예: 함수의 대칭이동 개념으로 복식 문양의 좌우 균형을 수식으로 표현하고, Python으로 이를 자동 분석할 수 있다는 것을 알게 되었다.", "rows": 3}]}, {"id": "p14", "cat": "정리", "icon": "🧭", "title": "진로 연계", "blocks": [{"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 프로그램 소개<\/h3>\n          <ul>\n            <li><strong>국립중앙박물관 「디지털 문화유산 실감체험 교육」<\/strong><br>문화재의 디지털 복원·3D 모델링 과정을 배우는 체험형 교육 프로그램. 참가자는 고대 복식·문양의 대칭 구조를 분석하며, 디지털 기술과 전통 예술을 융합하는 방법을 탐구함.<\/li>\n            <li style=\"margin-top:10px\"><strong>한국문화정보원 「문화데이터 청년 인턴십」<\/strong><br>문화유산 데이터를 수집·분석하고 시각화 콘텐츠를 제작하는 실무형 인턴십. 복식 문양·전통 패턴을 데이터화하여 문화유산 디지털 전환을 체험할 수 있음.<\/li>\n          <\/ul>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 콘텐츠 소개<\/h3>\n          <ul>\n            <li><strong>Google Arts &amp; Culture 「Korean Traditional Clothing Collection」<\/strong><br>한복과 전통 직물 패턴을 고해상도로 감상할 수 있는 온라인 전시 콘텐츠. 백제 복식의 대칭성과 문양 구조를 시각적으로 탐구하는 학습자료로 적합함.<\/li>\n            <li style=\"margin-top:10px\"><strong>EBS 다큐프라임 〈인간과 패션〉<\/strong><br>패션의 역사와 문화, 사회적 구조를 다룬 3부작 다큐멘터리로, 의복의 형태와 대칭성이 인류 문명 속에서 어떤 의미를 지니는지 탐구한다.<\/li>\n          <\/ul>\n        <\/div>"}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 책 소개<\/h3>\n          <ul>\n            <li><strong>《자연의 패턴》(저자: 이언 스튜어트)<\/strong><br>수학자 이언 스튜어트가 꽃잎, 조개껍질, 물결무늬 등 자연 속 대칭과 비율을 수학적으로 해석한 책. 복식 문양 속 반복·대칭 구조를 이해하는 데 도움이 됨.<\/li>\n            <li style=\"margin-top:10px\"><strong>《수학, 인문으로 수를 읽다》(저자: 이광연)<\/strong><br>수학을 문화·예술과 연결하여 인간의 사고 체계를 탐구하는 교양서. 복식의 대칭 및 비율을 인문학적 시각과 수학적 사유로 융합하는 사례를 제시하여 본 수업의 통합적 접근에 적합함.<\/li>\n          <\/ul>\n        <\/div>"}, {"t": "cards", "items": [{"front": "패션테크 엔지니어", "back": "수학적 모델링과 디자인 감각을 결합하여 의류 패턴의 대칭·비율을 분석하고 디지털 도구로 구현하는 직업"}, {"front": "디지털 문화유산 복원가", "back": "문화재 복식이나 문양을 3D 스캔 및 AI 기반 분석으로 복원하는 전문가"}, {"front": "데이터 시각화 디자이너", "back": "복식 문양의 색상·비율·대칭 데이터를 시각적으로 표현하는 전문 직업"}, {"front": "문화재 연구자", "back": "전통 복식의 구조·문양·재료를 과학·수학적으로 분석하고 기록·보존하는 연구 직업"}]}, {"t": "html", "v": "<div class=\"blk\">\n          <h3>▶ 대학 전공 소개<\/h3>\n          <ul>\n            <li><strong>의류학과<\/strong>: 의복의 구조, 패턴 설계, 디지털 의류 CAD 등을 교육하며 복식의 대칭성과 비율을 학문적으로 탐구함.<\/li>\n            <li><strong>전통복식과<\/strong>: 전통 의복의 재현, 복원, 문양 분석을 중심으로 실습 중심 교육을 실시함.<\/li>\n            <li><strong>패션디자인전공<\/strong>: 디지털 패션, 3D 모델링, 대칭 패턴 설계를 기반으로 한 복식 디자인 전문 교육을 진행함.<\/li>\n          <\/ul>\n        <\/div>"}, {"t": "link", "url": "https://www.career.go.kr/", "icon": "🧭", "title": "커리어넷 — 직업·전공 탐색", "desc": "패션테크, 문화유산 복원 관련 직업 정보와 학과 정보를 더 자세히 살펴볼 수 있습니다"}, {"t": "link", "url": "https://artsandculture.google.com/", "icon": "🎨", "title": "Google Arts & Culture", "desc": "한국 전통 복식을 포함한 세계 문화유산을 고해상도로 탐구할 수 있는 플랫폼"}]}]};
+</script>
+<script>
+/* =====================================================================
+   공주시 AIDT 공통 엔진 v1
+   - 학습 기록 자동 저장(브라우저 localStorage)
+   - 학습자 정보, 활동 기반 진행률, 학습 시간
+   - 2회 도전형 퀴즈 + 오답 시 관련 개념 페이지 안내
+   - 나의 학습 리포트(성취 수준·맞춤 학습 경로·메타인지 비교)
+   - 학습 기록 내려받기(JSON) → 교사용 대시보드에서 분석
+   ===================================================================== */
+(function () {
+  'use strict';
+  var LID = META.id, KEY = 'aidt:v1:' + LID, PKEY = 'aidt:v1:profile';
+  var CFG = window.AIDT_CONFIG || {}, SUBMIT_URL = String(CFG.submitUrl || '').trim();
+  var VIDS = META.videos || [];
+
+  /* ---------- 저장소 ---------- */
+  var mem = {};
+  function sget(k, d) { try { var v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return mem[k] || d; } }
+  function sset(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { mem[k] = v; } }
+  function fresh() { return { v: 1, inputs: {}, quiz: {}, assess: {}, steps: {}, videos: {}, visited: [], time: {}, last: 'p1', started: Date.now(), updated: Date.now() }; }
+  var S = sget(KEY, null) || fresh();
+  var P = sget(PKEY, null);
+  S.videos = S.videos || {};
+  var saveTimer = null;
+  function save(immediate) {
+    S.updated = Date.now();
+    S.summary = summary();
+    if (immediate) { sset(KEY, S); pill(); return; }
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () { sset(KEY, S); pill(); }, 300);
+  }
+
+  /* ---------- 유틸 ---------- */
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function txt(h) { return String(h || '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function $(s) { return document.querySelector(s); }
+  function fmtTime(sec) { sec = Math.round(sec || 0); var m = Math.floor(sec / 60); return m >= 60 ? Math.floor(m / 60) + '시간 ' + (m % 60) + '분' : m + '분 ' + (sec % 60) + '초'; }
+  var CIRC = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
+
+  /* ---------- 리포트 페이지 추가 ---------- */
+  if (VIDS.length) D.pages.splice(1, 0, { id: 'video', cat: '도입', icon: '🎬', title: '영상으로 미리 보기', blocks: [{ t: 'videos' }] });
+  D.pages.push({ id: 'report', cat: '마무리', icon: '📊', title: '나의 학습 리포트', blocks: [{ t: 'report' }] });
+  var PAGES = D.pages;
+  function pageById(id) { for (var i = 0; i < PAGES.length; i++) if (PAGES[i].id === id) return PAGES[i]; return null; }
+
+  /* ---------- 추적 항목(진행률 산정 대상) ---------- */
+  var ITEMS = [];          // {key,type,pid,label,...}
+  var QUIZ = [];           // 퀴즈 메타
+  PAGES.forEach(function (p) {
+    p.blocks.forEach(function (b, bi) {
+      var k = p.id + '.' + bi;
+      if (b.t === 'videos') VIDS.forEach(function (v, i) { ITEMS.push({ key: 'vid.' + v, type: 'video', pid: p.id, label: '영상 ' + (i + 1), vid: v }); });
+      if (b.t === 'input') ITEMS.push({ key: k, type: 'input', pid: p.id, label: txt(b.label) });
+      if (b.t === 'prediction') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'input', pid: p.id, label: txt(x.label) }); });
+      if (b.t === 'assessment') b.items.forEach(function (x, ii) { ITEMS.push({ key: k + '.' + ii, type: 'assess', pid: p.id, label: txt(x), ratings: b.ratings }); });
+      if (b.t === 'quiz') { var q = { key: k, type: 'quiz', pid: p.id, b: b, num: b.num, q: txt(b.q) }; ITEMS.push(q); QUIZ.push(q); }
+    });
+  });
+  function itemDone(it) {
+    if (it.type === 'input') return !!(S.inputs[it.key] && S.inputs[it.key].trim());
+    if (it.type === 'assess') return S.assess[it.key] != null;
+    if (it.type === 'quiz') return !!(S.quiz[it.key] && S.quiz[it.key].done);
+    if (it.type === 'video') return !!S.videos[it.vid];
+    return false;
+  }
+  function pageState(pid) {
+    var its = ITEMS.filter(function (x) { return x.pid === pid; });
+    if (pid === 'report') return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    if (!its.length) return S.visited.indexOf(pid) >= 0 ? 'done' : '';
+    var d = its.filter(itemDone).length;
+    return d === its.length ? 'done' : (d > 0 || S.visited.indexOf(pid) >= 0 ? 'part' : '');
+  }
+
+  /* ---------- 퀴즈 → 관련 개념 페이지 연결(어휘 중첩 기반) ---------- */
+  function words(s) { return (s.match(/[가-힣A-Za-z0-9]{2,}/g) || []); }
+  var conceptPages = PAGES.filter(function (p) { return p.cat === '알아봐요'; });
+  if (!conceptPages.length) conceptPages = PAGES.filter(function (p) { return p.cat === '활동해요'; });
+  var pageWords = {};
+  conceptPages.forEach(function (p) {
+    var t = p.title + ' ' + p.blocks.map(function (b) { return txt(b.v || b.body || b.title || '') + ' ' + (b.items ? txt(JSON.stringify(b.items)) : '') + ' ' + (b.tabs ? txt(JSON.stringify(b.tabs)) : ''); }).join(' ');
+    var set = {}; words(t).forEach(function (w) { set[w] = 1; set[w.slice(0, 2)] = 1; });
+    pageWords[p.id] = set;
+  });
+  var DF = {}, NP = conceptPages.length;
+  conceptPages.forEach(function (p) { for (var w in pageWords[p.id]) DF[w] = (DF[w] || 0) + 1; });
+  function idf(w) { return Math.log(1 + NP / (DF[w] || NP)); }
+  QUIZ.forEach(function (q) {
+    var b = q.b, src = b.q + ' ' + b.opts[b.ans] + ' ' + txt(b.ok), best = null, bs = -1;
+    var ws = {}; words(src).forEach(function (w) { ws[w] = 1; });
+    conceptPages.forEach(function (p) {
+      var s = 0, n = 0; for (var w in ws) { if (pageWords[p.id][w]) s += idf(w); else if (pageWords[p.id][w.slice(0, 2)]) s += idf(w.slice(0, 2)) * 0.3; }
+      for (var k in pageWords[p.id]) n++;
+      s = s / Math.pow(n + 20, 0.25);
+      if (s > bs) { bs = s; best = p; }
+    });
+    q.concept = best ? best.id : null;
+  });
+
+  /* ---------- 오답 힌트: 정답을 그대로 노출하면 일반 힌트로 대체 ---------- */
+  function safeHint(b) {
+    var h = txt(b.no), a = String(b.opts[b.ans]).trim();
+    var leak = a && h.indexOf(a) >= 0 && (a.length >= 3 || new RegExp('(=|은|는|이|가)\\s*' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*(입니다|이다|이에요|$|\\.)').test(h));
+    if (!h || leak) return '풀이 과정을 다시 확인해 보세요. 관련 개념을 복습한 뒤 한 번 더 도전해 보세요.';
+    return h.replace(/^(힌트\s*[:：]\s*)/, '').replace(/^다시\s*(생각|계산)해\s*봅시다[.!]?\s*/, '');
+  }
+  function stripOk(s) { return txt(s).replace(/^(정답입니다[.!]?|정답[!.]|맞아요[.!]?|맞습니다[.!]?)\s*/, ''); }
+
+  /* ---------- 블록 렌더러 ---------- */
+  function rBlock(b, pid, bi) {
+    var k = pid + '.' + bi;
+    switch (b.t) {
+      case 'html': return b.v;
+      case 'objectives': return '<div class="blk blk-card"><h3>🎯 학습목표</h3><ul class="obj-list">' + b.items.map(function (x, i) { return '<li><span class="obj-num">' + (i + 1) + '</span><span>' + x + '</span></li>'; }).join('') + '</ul></div>';
+      case 'callout': return '<div class="callout ' + (b.variant || '') + '"><div class="c-title">' + b.title + '</div><div class="c-body">' + b.body + '</div></div>';
+      case 'input': {
+        var v = esc(S.inputs[k] || ''), lab = b.label;
+        return '<div class="blk input-group' + (v ? ' filled' : '') + '"><label for="i_' + k + '">' + lab + '</label>' +
+          (b.rows > 1 ? '<textarea id="i_' + k + '" data-k="' + k + '" rows="' + b.rows + '" placeholder="' + esc(b.ph || '') + '">' + v + '</textarea>'
+            : '<input type="text" id="i_' + k + '" data-k="' + k + '" placeholder="' + esc(b.ph || '') + '" value="' + v + '">') + '</div>';
+      }
+      case 'steps': return '<div class="steps"><div class="s-hd">📋 ' + b.title + '</div>' + b.items.map(function (s, i) {
+        var sk = k + '.' + i; return '<div class="step' + (S.steps[sk] ? ' done' : '') + '" data-sk="' + sk + '"><div class="s-n">' + (i + 1) + '</div><div class="s-c"><h4>' + s.title + '</h4><p>' + s.desc + '</p></div></div>';
+      }).join('') + '</div>';
+      case 'link': return '<a class="link-card" href="' + b.url + '" target="_blank" rel="noopener"><div class="l-icon">' + (b.icon || '🔗') + '</div><div class="l-info"><h4>' + b.title + '</h4><p>' + b.desc + '</p></div></a>';
+      case 'tabs': {
+        var tid = 't_' + k.replace('.', '_');
+        return '<div class="blk"><div class="tabs-nav">' + b.tabs.map(function (t, i) { return '<button class="tab-btn ' + (i === 0 ? 'active' : '') + '" data-tid="' + tid + '" data-ti="' + i + '">' + t.label + '</button>'; }).join('') + '</div>' +
+          b.tabs.map(function (t, i) { return '<div class="tab-panel ' + (i === 0 ? 'active' : '') + '" id="' + tid + '-' + i + '">' + t.content + '</div>'; }).join('') + '</div>';
+      }
+      case 'cards': return '<div class="cards-grid">' + b.items.map(function (c) { return '<div class="flip-card"><div class="flip-inner"><div class="flip-front">' + c.front.replace(/\n/g, '<br>') + '</div><div class="flip-back">' + c.back + '</div></div></div>'; }).join('') + '</div>';
+      case 'prediction': return '<div class="blk blk-card"><h4>🔮 예측 조건/행동 입력</h4>' + b.items.map(function (x, i) {
+        var pk = k + '.' + i; return '<div class="pred-row"><label for="i_' + pk + '">' + x.label + '</label><input type="text" id="i_' + pk + '" data-k="' + pk + '" placeholder="' + esc(x.ph || '') + '" value="' + esc(S.inputs[pk] || '') + '" style="width:100%"></div>';
+      }).join('') + '<div class="auto-note">✔ 입력하면 자동으로 저장됩니다.</div></div>';
+      case 'quiz': return quizHTML(k);
+      case 'assessment': return '<div class="blk blk-card"><h3>✅ ' + b.title + '</h3>' + b.items.map(function (x, i) {
+        var ak = k + '.' + i; return '<div class="assess-item"><span>' + x + '</span><div class="rating-g">' + b.ratings.map(function (r, ri) { return '<button class="r-btn' + (S.assess[ak] === ri ? ' sel' : '') + '" data-ak="' + ak + '" data-ri="' + ri + '">' + r + '</button>'; }).join('') + '</div></div>';
+      }).join('') + '</div>';
+      case 'code': {
+        var cid = 'c_' + k.replace('.', '_');
+        return '<div class="blk code-blk"><div class="code-hd"><span>' + esc(b.lang) + '</span><button class="code-copy" data-cid="' + cid + '">코드 복사</button></div><div class="code-bd"><pre id="' + cid + '">' + esc(b.code) + '</pre></div></div>';
+      }
+      case 'wokwi': return '<div class="blk"><a class="link-card wokwi" href="https://wokwi.com/projects/new/arduino-uno" target="_blank" rel="noopener"><div class="l-icon">🔧</div><div class="l-info"><h4>Wokwi 시뮬레이터로 직접 실습해 보기 ↗</h4><p>새 탭으로 시뮬레이터를 열어두고, 아래 코드를 하나씩 복사해 붙여넣은 뒤 ▶ 버튼으로 실행해 보세요.</p></div></a></div>';
+      case 'videos': return '<div class="blk"><p>이번 차시의 핵심 내용을 짧은 영상 ' + VIDS.length + '편으로 먼저 만나 봅시다. 영상을 보고 다음 쪽 <b>생각해요</b>로 넘어가세요.</p></div><div class="vid-grid">' +
+        VIDS.map(function (v, i) { return '<div class="vid-card' + (S.videos[v] ? ' seen' : '') + '"><div class="vid-thumb" data-vid="' + v + '" style="background-image:url(https://i.ytimg.com/vi/' + v + '/hqdefault.jpg)"><span class="vid-play">▶</span></div><div class="vid-cap"><b>🎬 영상 ' + (i + 1) + '</b><span class="vid-seen">✓ 시청함</span><a href="https://youtu.be/' + v + '" target="_blank" rel="noopener" data-vlink="' + v + '">유튜브에서 보기 ↗</a></div></div>'; }).join('') +
+        '</div>' + (location.protocol === 'file:' ? '<p class="muted small">※ 파일로 열면 유튜브 새 탭에서 재생됩니다.</p>' : '');
+      case 'report': return reportHTML();
+      default: return '';
+    }
+  }
+
+  /* ---------- 퀴즈 ---------- */
+  function qmeta(key) { for (var i = 0; i < QUIZ.length; i++) if (QUIZ[i].key === key) return QUIZ[i]; }
+  function quizHTML(key) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] }, tries = st.tries || [];
+    var done = !!st.done, correct = done && tries[tries.length - 1] === b.ans;
+    var badge = '';
+    if (done && correct) badge = '<span class="q-badge ok">' + (tries.length === 1 ? '✓ 정답' : '✓ 2회 만에 정답') + '</span>';
+    else if (done) badge = '<span class="q-badge no">✗ 오답</span>';
+    else if (tries.length) badge = '<span class="q-badge try">기회 1번 남음</span>';
+    var h = '<div class="blk blk-card quiz-card" id="q_' + key.replace('.', '_') + '"><div class="quiz-q"><span class="qn">' + b.num + '.</span><span style="flex:1">' + b.q + '</span>' + badge + '</div>';
+    h += b.opts.map(function (o, i) {
+      var cls = '', mark = CIRC[i] || (i + 1);
+      if (tries.indexOf(i) >= 0 && i !== b.ans) { cls = ' wrong'; mark = '✗'; }
+      if (done && i === b.ans) { cls = ' correct'; mark = '✓'; }
+      var dis = done || tries.indexOf(i) >= 0 ? ' disabled' : '';
+      return '<div class="quiz-opt' + cls + dis + '" data-qk="' + key + '" data-qi="' + i + '"><span class="oc">' + mark + '</span><span>' + o + '</span></div>';
+    }).join('');
+    var concept = m.concept && pageById(m.concept);
+    var clink = concept ? '<a class="concept-link" data-go="' + concept.id + '">📖 관련 개념 다시 보기: ' + concept.title + '</a>' : '';
+    if (done && correct) h += '<div class="quiz-fb ok show">' + b.ok + '</div>';
+    else if (done) h += '<div class="quiz-fb no show"><b>정답은 ' + (CIRC[b.ans] || '') + ' ' + b.opts[b.ans] + '입니다.</b><br>💡 ' + stripOk(b.ok) + '</div>' + clink;
+    else if (tries.length) h += '<div class="quiz-fb no show"><b>다시 생각해 봅시다.</b> ' + safeHint(b) + '</div>' + clink;
+    return h + '</div>';
+  }
+  function answerQuiz(key, i) {
+    var m = qmeta(key), b = m.b, st = S.quiz[key] || { tries: [] };
+    if (st.done || st.tries.indexOf(i) >= 0) return;
+    st.tries.push(i);
+    if (i === b.ans) { st.done = true; st.first = st.tries.length === 1; }
+    else if (st.tries.length >= 2) { st.done = true; st.first = false; }
+    st.at = Date.now();
+    S.quiz[key] = st; save(true);
+    var el = document.getElementById('q_' + key.replace('.', '_'));
+    if (el) el.outerHTML = quizHTML(key);
+    refreshProgress();
+  }
+
+  /* ---------- 영상 ---------- */
+  function markVideo(v) { if (!S.videos[v]) { S.videos[v] = Date.now(); save(true); refreshProgress(); } var c = document.querySelector('[data-vid="' + v + '"]'); if (c) c.closest('.vid-card').classList.add('seen'); }
+  function playVideo(el, v) {
+    markVideo(v); el.closest('.vid-card').classList.add('seen');
+    if (location.protocol === 'file:') { window.open('https://youtu.be/' + v, '_blank', 'noopener'); return; }
+    el.removeAttribute('data-vid'); el.style.backgroundImage = 'none';
+    el.innerHTML = '<iframe src="https://www.youtube.com/embed/' + v + '?autoplay=1&rel=0&playsinline=1" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin" title="영상"></iframe>';
+  }
+
+  /* ---------- 요약 통계 ---------- */
+  function summary() {
+    var tot = ITEMS.length, done = ITEMS.filter(itemDone).length;
+    var qn = QUIZ.length, first = 0, second = 0, wrong = 0, answered = 0;
+    QUIZ.forEach(function (q) { var s = S.quiz[q.key]; if (!s || !s.done) return; answered++; var c = s.tries[s.tries.length - 1] === q.b.ans; if (c && s.first) first++; else if (c) second++; else wrong++; });
+    var score = answered ? Math.round((first + second * 0.5) / answered * 100) : null;
+    var prov = score == null ? '-' : score >= 80 ? '상' : score >= 50 ? '중' : '하';
+    var level = answered === 0 ? '-' : answered < qn ? '미완료' : prov;
+    var as = ITEMS.filter(function (x) { return x.type === 'assess' && S.assess[x.key] != null; });
+    var self = as.length ? Math.round(as.reduce(function (a, x) { return a + (2 - Math.min(2, S.assess[x.key])); }, 0) / (as.length * 2) * 100) : null;
+    var t = 0; for (var p in S.time) t += S.time[p];
+    var vw = VIDS.filter(function (v) { return S.videos[v]; }).length;
+    return { progress: tot ? Math.round(done / tot * 100) : 0, done: done, total: tot, quizTotal: qn, answered: answered, prov: prov, first: first, second: second, wrong: wrong, score: score, level: level, self: self, timeSec: Math.round(t), videosWatched: vw, videosTotal: VIDS.length };
+  }
+
+  /* ---------- 리포트 ---------- */
+  function reportHTML() {
+    var s = summary(), who = P ? esc(profileText(P)) : '<a class="concept-link" data-act="profile">학습자 정보 입력하기</a>';
+    var h = '<div class="blk blk-card rep-head"><div class="rep-who">👤 ' + who + '</div><div class="rep-meta">' + esc(META.subject) + ' ' + esc(META.code) + ' · ' + esc(D.title) + '</div>' +
+      '<div class="rep-stats">' +
+      stat('진행률', s.progress + '%', s.done + ' / ' + s.total + ' 활동') +
+      stat('퀴즈 성취도', s.answered ? s.score + '점' : '–', s.answered ? '1차 정답 ' + s.first + ' · 2차 정답 ' + s.second + ' · 오답 ' + s.wrong : '아직 풀지 않음') +
+      stat('성취 수준', s.level === '미완료' ? s.prov + '<small>(잠정)</small>' : s.level, s.level === '미완료' ? '퀴즈 ' + (s.quizTotal - s.answered) + '문항 남음' : s.level === '상' ? '목표 도달' : s.level === '중' ? '부분 도달' : s.level === '하' ? '보충 필요' : '') +
+      stat('학습 시간', fmtTime(s.timeSec), VIDS.length ? '영상 시청 ' + s.videosWatched + ' / ' + s.videosTotal + '편' : '이 차시에서 보낸 시간') + '</div></div>';
+
+    // 맞춤 학습 경로
+    var wrongQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return st && st.done && !st.first; });
+    var notQ = QUIZ.filter(function (q) { var st = S.quiz[q.key]; return !st || !st.done; });
+    h += '<div class="blk blk-card"><h3>🧭 나에게 맞는 다음 학습</h3>';
+    if (!s.answered) {
+      h += '<p>먼저 활동퀴즈를 풀어 보세요. 결과에 따라 맞춤 학습 경로를 안내합니다.</p>' + (notQ.length ? '<p><a class="concept-link" data-go="' + notQ[0].pid + '">❓ 활동퀴즈 풀러 가기</a></p>' : '');
+    } else {
+      var L = s.prov;
+      var msg = (s.level === '미완료' ? '(지금까지 푼 ' + s.answered + '문항 기준) ' : '') + (L === '상' ? '🎉 학습목표에 도달했어요! 심화 자료로 생각을 넓혀 보세요.'
+        : L === '중' ? '👍 핵심은 이해했어요. 헷갈린 개념만 다시 정리하면 완벽해요.'
+          : '💪 기본 개념을 다시 다져 볼까요? 아래 순서대로 복습한 뒤 틀린 문제에 다시 도전해 보세요.');
+      h += '<p class="rep-msg lv-' + L + '">' + msg + '</p>';
+      var rec = [];
+      if (L === '하') conceptPages.forEach(function (p) { rec.push([p.id, '📖 기본 개념: ' + p.title]); });
+      var seen = {};
+      wrongQ.forEach(function (q) { if (q.concept && !seen[q.concept]) { seen[q.concept] = 1; var p = pageById(q.concept); if (L !== '하') rec.push([p.id, '📖 ' + q.num + '번 관련 개념: ' + p.title]); } });
+      if (L === '상') PAGES.forEach(function (p) { if (/읽기|진로/.test(p.title) && p.cat === '정리') rec.push([p.id, (/진로/.test(p.title) ? '🧭 ' : '📚 ') + '심화: ' + p.title]); });
+      if (notQ.length) rec.push([notQ[0].pid, '❓ 아직 풀지 않은 퀴즈 ' + notQ.length + '문항']);
+      if (rec.length) h += '<ol class="rec-list">' + rec.map(function (r) { return '<li><a class="concept-link" data-go="' + r[0] + '">' + r[1] + '</a></li>'; }).join('') + '</ol>';
+      if (wrongQ.length) h += '<button class="btn btn-o" data-act="retry">🔁 틀린 문제 다시 풀기 (' + wrongQ.length + '문항)</button>';
+    }
+    h += '</div>';
+
+    // 문항별 결과
+    if (QUIZ.length) {
+      h += '<div class="blk blk-card"><h3>📝 문항별 결과</h3><table class="rep-tbl"><tr><th>번호</th><th>문항</th><th>결과</th><th>다시 보기</th></tr>';
+      QUIZ.forEach(function (q) {
+        var st = S.quiz[q.key], r = '<span class="muted">미응시</span>';
+        if (st && st.done) { var c = st.tries[st.tries.length - 1] === q.b.ans; r = c ? (st.first ? '<span class="r-ok">✓ 정답</span>' : '<span class="r-mid">△ 2차 정답</span>') : '<span class="r-no">✗ 오답</span>'; }
+        var cp = q.concept && pageById(q.concept);
+        h += '<tr><td>' + q.num + '</td><td><a class="concept-link" data-go="' + q.pid + '">' + esc(q.q.length > 48 ? q.q.slice(0, 48) + '…' : q.q) + '</a></td><td>' + r + '</td><td>' + (cp ? '<a class="concept-link" data-go="' + cp.id + '">' + esc(cp.title) + '</a>' : '') + '</td></tr>';
+      });
+      h += '</table></div>';
+    }
+
+    // 메타인지: 자기진단 vs 퀴즈
+    if (s.self != null) {
+      var cmp = '';
+      if (s.answered) {
+        var d = s.self - s.score;
+        cmp = d > 25 ? '스스로 평가한 이해도(' + s.self + '%)가 퀴즈 결과(' + s.score + '점)보다 높아요. 틀린 문항의 개념을 다시 확인해 보세요.'
+          : d < -25 ? '퀴즈 결과(' + s.score + '점)가 스스로 평가한 이해도(' + s.self + '%)보다 높아요. 생각보다 잘 이해하고 있으니 자신감을 가져도 좋아요!'
+            : '스스로 평가한 이해도(' + s.self + '%)와 퀴즈 결과(' + s.score + '점)가 비슷해요. 자신의 학습 상태를 잘 파악하고 있어요.';
+      } else cmp = '스스로 평가한 이해도는 ' + s.self + '%입니다. 퀴즈를 풀면 실제 결과와 비교해 드려요.';
+      h += '<div class="blk blk-card"><h3>🪞 스스로 진단 vs 실제 결과</h3><p>' + cmp + '</p></div>';
+    }
+
+    // 미작성 활동
+    var empty = ITEMS.filter(function (x) { return (x.type === 'input' || x.type === 'assess') && !itemDone(x); });
+    h += '<div class="blk blk-card"><h3>✍️ 아직 작성하지 않은 활동 ' + (empty.length ? '(' + empty.length + '개)' : '') + '</h3>';
+    if (!empty.length) h += '<p>모든 활동을 작성했어요. 훌륭해요!</p>';
+    else {
+      var byP = {}; empty.forEach(function (x) { (byP[x.pid] = byP[x.pid] || []).push(x); });
+      h += '<ul class="rec-list">' + Object.keys(byP).map(function (pid) { var p = pageById(pid); return '<li><a class="concept-link" data-go="' + pid + '">' + p.icon + ' ' + esc(p.title) + '</a> <span class="muted">· ' + byP[pid].length + '개</span></li>'; }).join('') + '</ul>';
+    }
+    h += '</div>';
+
+    // 내 답변 모아보기
+    var filled = ITEMS.filter(function (x) { return x.type === 'input' && itemDone(x); });
+    if (filled.length) {
+      h += '<details class="blk blk-card"><summary><b>🗂️ 내가 작성한 답변 모아보기 (' + filled.length + '개)</b></summary><div class="ans-list">' +
+        filled.map(function (x) { return '<div class="ans-item"><div class="ans-q">' + esc(x.label) + '</div><div class="ans-a">' + esc(S.inputs[x.key]).replace(/\n/g, '<br>') + '</div></div>'; }).join('') + '</div></details>';
+    }
+
+    var sub = S.submittedAt ? new Date(S.submittedAt) : null;
+    if (SUBMIT_URL) h += '<div class="blk blk-card submit-box' + (sub ? ' done' : '') + '"><div><b>' + (sub ? '✅ 선생님께 제출했어요' : '📤 학습 결과를 선생님께 제출하세요') + '</b><div class="muted small">' + (sub ? '제출 시각 ' + sub.toLocaleString('ko-KR') + ' · 내용을 고쳤다면 다시 제출하세요(최신 기록으로 바뀝니다).' : '버튼을 누르면 선생님의 구글 시트로 바로 전송됩니다.') + '</div></div><button class="btn btn-p" data-act="submit">' + (sub ? '🔁 다시 제출하기' : '📤 선생님께 제출하기') + '</button></div>';
+    h += '<div class="blk rep-actions"><button class="btn ' + (SUBMIT_URL ? 'btn-o' : 'btn-p') + '" data-act="export">📥 학습 기록 내려받기</button><button class="btn btn-o" data-act="print">🖨️ 인쇄 / PDF 저장</button><button class="btn btn-o" data-act="reset">↺ 처음부터 다시 하기</button></div>' +
+      '<p class="muted small">' + (SUBMIT_URL ? '제출 버튼이 작동하지 않으면 학습 기록을 내려받아 선생님께 파일로 제출하세요.' : '내려받은 학습 기록(.json) 파일을 구글 클래스룸 등으로 선생님께 제출하세요.') + ' 선생님은 교사용 대시보드에서 학급 결과를 한눈에 볼 수 있어요. 학습 기록은 이 기기의 브라우저에만 저장됩니다.</p>';
+    return h;
+    function stat(l, v, sub) { return '<div class="rep-stat"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + sub + '</div></div>'; }
+  }
+
+  /* ---------- 내보내기 ---------- */
+  function profileText(p) { return [p.school, p.grade ? p.grade + '학년' : '', p.cls ? p.cls + '반' : '', p.num ? p.num + '번' : '', p.name].filter(Boolean).join(' '); }
+  function buildRecord() {
+    var s = summary();
+    return {
+      format: 'gongju-aidt-v1', exportedAt: new Date().toISOString(),
+      lesson: { id: LID, subject: META.subject, code: META.code, title: D.title },
+      student: P, summary: s,
+      quiz: QUIZ.map(function (q) { var st = S.quiz[q.key] || { tries: [] }; var c = st.done && st.tries[st.tries.length - 1] === q.b.ans; return { num: q.num, question: q.q, answer: txt(q.b.opts[q.b.ans]), tries: st.tries.map(function (i) { return txt(q.b.opts[i]); }), done: !!st.done, correct: !!c, firstCorrect: !!(c && st.first), concept: q.concept ? pageById(q.concept).title : '' }; }),
+      responses: ITEMS.filter(function (x) { return x.type === 'input'; }).map(function (x) { return { key: x.key, page: pageById(x.pid).title, prompt: x.label, answer: S.inputs[x.key] || '' }; }),
+      selfAssessment: ITEMS.filter(function (x) { return x.type === 'assess'; }).map(function (x) { return { item: x.label, rating: S.assess[x.key] != null ? x.ratings[S.assess[x.key]] : '', score: S.assess[x.key] != null ? 2 - Math.min(2, S.assess[x.key]) : null }; }),
+      timePerPage: PAGES.map(function (p) { return { page: p.title, sec: Math.round(S.time[p.id] || 0) }; }),
+      videos: VIDS.map(function (v, i) { return { n: i + 1, id: v, watched: !!S.videos[v] }; })
+    };
+  }
+  function exportRecord() {
+    if (!P || !P.name) { openProfile(function () { exportRecord(); }); return; }
+    var rec = buildRecord();
+    var name = [P.grade && P.cls && P.num ? P.grade + String(P.cls).padStart(2, '0') + String(P.num).padStart(2, '0') : '', P.name, META.subject + META.code].filter(Boolean).join('_') + '.json';
+    var blob = new Blob([JSON.stringify(rec, null, 1)], { type: 'application/json' });
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+    toast('📥 ' + name + ' 파일을 내려받았어요.');
+  }
+  var submitting = false;
+  function submitRecord(btn) {
+    if (!P || !P.name) { openProfile(function () { submitRecord(); }); return; }
+    if (submitting) return; submitting = true;
+    if (btn) { btn.disabled = true; btn.textContent = '제출 중…'; }
+    tick(); save(true);
+    var body = JSON.stringify(buildRecord());
+    function done(ok, msg) {
+      submitting = false;
+      if (ok) { S.submittedAt = Date.now(); save(true); toast('✅ 선생님께 제출했어요!'); }
+      else toast('⚠️ 제출하지 못했어요. ' + (msg || '인터넷 연결을 확인하거나 학습 기록을 내려받아 제출하세요.'));
+      if (cur === 'report') render('report');
+    }
+    fetch(SUBMIT_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body, redirect: 'follow' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { done(!!j.ok, j.error === 'closed' ? '선생님이 제출을 마감했어요.' : ''); })
+      .catch(function () {
+        fetch(SUBMIT_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: body })
+          .then(function () { done(true); }, function () { done(false); });
+      });
+  }
+
+  /* ---------- 학습자 정보 ---------- */
+  function openProfile(after) {
+    var p = P || {};
+    var ov = document.createElement('div'); ov.className = 'modal-ov';
+    ov.innerHTML = '<div class="modal"><h3>👋 학습자 정보</h3><p class="muted small">학습 기록에 함께 저장되어 선생님께 제출할 때 사용됩니다. 이 기기의 모든 차시에 공통으로 적용돼요.</p>' +
+      '<div class="pf-grid"><label>학교<input id="pf_school" value="' + esc(p.school || '') + '" placeholder="예: 공주고등학교"></label>' +
+      '<label>학년<input id="pf_grade" inputmode="numeric" value="' + esc(p.grade || '') + '" placeholder="1"></label>' +
+      '<label>반<input id="pf_cls" inputmode="numeric" value="' + esc(p.cls || '') + '" placeholder="3"></label>' +
+      '<label>번호<input id="pf_num" inputmode="numeric" value="' + esc(p.num || '') + '" placeholder="12"></label>' +
+      '<label class="full">이름<input id="pf_name" value="' + esc(p.name || '') + '" placeholder="홍길동"></label></div>' +
+      '<div class="modal-btns"><button class="btn btn-o" id="pf_skip">나중에</button><button class="btn btn-p" id="pf_ok">저장하고 시작</button></div></div>';
+    document.body.appendChild(ov);
+    setTimeout(function () { var n = document.getElementById('pf_name'); if (n) n.focus(); }, 50);
+    ov.querySelector('#pf_skip').onclick = function () { ov.remove(); };
+    ov.querySelector('#pf_ok').onclick = function () {
+      var g = function (id) { return document.getElementById(id).value.trim(); };
+      if (!g('pf_name')) { document.getElementById('pf_name').focus(); toast('이름을 입력해 주세요.'); return; }
+      P = { school: g('pf_school'), grade: g('pf_grade'), cls: g('pf_cls'), num: g('pf_num'), name: g('pf_name') };
+      sset(PKEY, P); ov.remove(); renderWho(); if (cur === 'report') render('report'); if (after) after();
+    };
+  }
+  function renderWho() { var w = document.getElementById('who'); if (w) w.innerHTML = P ? '👤 ' + esc(profileText(P)) + ' <a data-act="profile">수정</a>' : '👤 <a data-act="profile">학습자 정보 입력</a>'; }
+
+  /* ---------- 화면 ---------- */
+  var cur = null, pageStart = Date.now();
+  function tick() {
+    if (cur && !document.hidden) { var dt = (Date.now() - pageStart) / 1000; if (dt > 0 && dt < 600) S.time[cur] = (S.time[cur] || 0) + dt; }
+    pageStart = Date.now();
+  }
+  setInterval(function () { tick(); save(); }, 15000);
+  document.addEventListener('visibilitychange', function () { tick(); save(true); });
+  window.addEventListener('beforeunload', function () { tick(); save(true); });
+
+  function buildNav() {
+    var h = '', c = null;
+    PAGES.forEach(function (p) {
+      if (p.cat !== c) { h += '<div class="nav-cat">' + p.cat + '</div>'; c = p.cat; }
+      var st = pageState(p.id);
+      h += '<div class="nav-item' + (p.id === cur ? ' active' : '') + (p.id === 'report' ? ' nav-report' : '') + '" data-pid="' + p.id + '"><span class="icon">' + p.icon + '</span><span style="flex:1">' + p.title + '</span><span class="nst ' + st + '">' + (st === 'done' ? '✓' : st === 'part' ? '•' : '') + '</span></div>';
+    });
+    document.getElementById('nav').innerHTML = h;
+  }
+  function refreshProgress() {
+    var s = summary();
+    document.getElementById('pTxt').textContent = s.progress + '%';
+    document.getElementById('pBar').style.width = s.progress + '%';
+    var sub = document.getElementById('pSub'); if (sub) sub.textContent = s.done + ' / ' + s.total + ' 활동 완료' + (s.answered ? ' · 퀴즈 ' + s.score + '점' : '');
+    document.querySelectorAll('.nav-item').forEach(function (el) { var st = pageState(el.dataset.pid), n = el.querySelector('.nst'); n.className = 'nst ' + st; n.textContent = st === 'done' ? '✓' : st === 'part' ? '•' : ''; });
+  }
+  function pill() { var e = document.getElementById('savePill'); if (!e) return; var d = new Date(S.updated); e.textContent = '✔ 자동 저장됨 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); e.classList.add('flash'); setTimeout(function () { e.classList.remove('flash'); }, 600); }
+  function toast(m) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(function () { t.classList.add('show'); }, 10); setTimeout(function () { t.classList.remove('show'); setTimeout(function () { t.remove(); }, 300); }, 2600); }
+
+  function render(pid) {
+    var pg = pageById(pid) || PAGES[0]; pid = pg.id;
+    tick(); cur = pid; S.last = pid;
+    if (S.visited.indexOf(pid) < 0) S.visited.push(pid);
+    var idx = PAGES.indexOf(pg), m = document.getElementById('main');
+    var prev = idx > 0 ? '<button class="btn btn-o" data-go="' + PAGES[idx - 1].id + '">← 이전</button>' : '<div></div>';
+    var next = idx < PAGES.length - 1 ? '<button class="btn btn-p" data-go="' + PAGES[idx + 1].id + '">' + (PAGES[idx + 1].id === 'report' ? '📊 학습 리포트 보기 →' : '다음 →') + '</button>' : '<a class="btn btn-p" href="../index.html">전체 차시로 →</a>';
+    m.innerHTML = '<div class="pg-hd"><div class="pg-top"><div class="pg-crumb">' + D.title + (pg.cat ? ' &gt; ' + pg.cat : '') + '</div><span class="save-pill" id="savePill">✔ 자동 저장</span></div><h2 class="pg-title">' + pg.icon + ' ' + pg.title + '</h2></div>' +
+      pg.blocks.map(function (b, bi) { return rBlock(b, pid, bi); }).join('') + '<div class="pg-nav">' + prev + next + '</div>';
+    if (location.hash !== '#' + pid) history.replaceState(null, '', '#' + pid);
+    document.querySelectorAll('.nav-item').forEach(function (el) { el.classList.toggle('active', el.dataset.pid === pid); });
+    save(true); refreshProgress();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector('.sidebar').classList.remove('open');
+  }
+  window.go = render;
+
+  /* ---------- 이벤트(위임) ---------- */
+  document.addEventListener('input', function (e) {
+    var k = e.target.dataset && e.target.dataset.k; if (!k) return;
+    S.inputs[k] = e.target.value; save();
+    var g = e.target.closest('.input-group'); if (g) g.classList.toggle('filled', !!e.target.value.trim());
+    clearTimeout(refreshProgress._t); refreshProgress._t = setTimeout(refreshProgress, 400);
+  });
+  document.addEventListener('click', function (e) {
+    var vl = e.target.closest('[data-vlink]'); if (vl) { markVideo(vl.dataset.vlink); return; }
+    var t = e.target.closest('[data-go],[data-pid],[data-qk],[data-ak],[data-sk],[data-tid],[data-cid],[data-act],[data-vid],.flip-card');
+    if (!t) return;
+    if (t.dataset.vid) { playVideo(t, t.dataset.vid); return; }
+    if (t.dataset.go) { e.preventDefault(); render(t.dataset.go); return; }
+    if (t.dataset.pid) { render(t.dataset.pid); return; }
+    if (t.dataset.qk) { if (!t.classList.contains('disabled')) answerQuiz(t.dataset.qk, +t.dataset.qi); return; }
+    if (t.dataset.ak) { S.assess[t.dataset.ak] = +t.dataset.ri; t.parentElement.querySelectorAll('.r-btn').forEach(function (b) { b.classList.toggle('sel', b === t); }); save(); refreshProgress(); return; }
+    if (t.dataset.sk) { S.steps[t.dataset.sk] = !S.steps[t.dataset.sk]; t.classList.toggle('done', !!S.steps[t.dataset.sk]); save(); return; }
+    if (t.dataset.tid) { var p = t.parentElement; p.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.toggle('active', b === t); }); document.querySelectorAll('[id^="' + t.dataset.tid + '-"]').forEach(function (x) { x.classList.toggle('active', x.id === t.dataset.tid + '-' + t.dataset.ti); }); return; }
+    if (t.dataset.cid) { var c = document.getElementById(t.dataset.cid).textContent; (navigator.clipboard ? navigator.clipboard.writeText(c) : Promise.reject()).then(function () { t.textContent = '복사 완료 ✔'; }, function () { t.textContent = '직접 선택해 복사하세요'; }); setTimeout(function () { t.textContent = '코드 복사'; }, 2000); return; }
+    if (t.classList.contains('flip-card')) { t.classList.toggle('flipped'); return; }
+    var a = t.dataset.act;
+    if (a === 'profile') openProfile();
+    if (a === 'export') exportRecord();
+    if (a === 'submit') submitRecord(t);
+    if (a === 'print') window.print();
+    if (a === 'retry') { var first = null; QUIZ.forEach(function (q) { var st = S.quiz[q.key]; if (st && st.done && !st.first) { st.retried = (st.retried || 0) + 1; delete S.quiz[q.key]; if (!first) first = q.pid; } }); save(true); toast('틀린 문제를 다시 풀 수 있어요.'); if (first) render(first); }
+    if (a === 'reset') { if (confirm('이 차시의 모든 학습 기록(답변·퀴즈·진단)을 지울까요? 되돌릴 수 없습니다.')) { S = fresh(); save(true); buildNav(); render('p1'); } }
+  });
+
+  /* ---------- 시작 ---------- */
+  var side = document.querySelector('.sidebar-hd');
+  side.insertAdjacentHTML('afterbegin', '<a class="home-link" href="../index.html">← 전체 차시</a>');
+  document.querySelector('.sidebar-ft').insertAdjacentHTML('beforeend', '<div class="prog-sub" id="pSub"></div><div class="who" id="who"></div>');
+  buildNav(); renderWho();
+  var start = (location.hash || '').slice(1);
+  render(pageById(start) ? start : (S.last && pageById(S.last) ? S.last : 'p1'));
+  if (!P) setTimeout(function () { openProfile(); }, 400);
+})();
+
+</script>
+</body>
+</html>
