@@ -346,7 +346,7 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
   var CIRC = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧'];
 
   /* ---------- 리포트 페이지 추가 ---------- */
-  if (VIDS.length) D.pages.splice(1, 0, { id: 'video', cat: '도입', icon: '🎬', title: '영상으로 미리 보기', blocks: [{ t: 'videos' }] });
+  if (VIDS.length) D.pages.unshift({ id: 'video', cat: '수업 영상', icon: '🎬', title: '이 차시 영상 모음', blocks: [{ t: 'videos' }] });
   D.pages.push({ id: 'report', cat: '마무리', icon: '📊', title: '나의 학습 리포트', blocks: [{ t: 'report' }] });
   var PAGES = D.pages;
   function pageById(id) { for (var i = 0; i < PAGES.length; i++) if (PAGES[i].id === id) return PAGES[i]; return null; }
@@ -448,7 +448,7 @@ const D = {"title": "원의 방정식 모델링", "pages": [{"id": "p1", "cat": 
         return '<div class="blk code-blk"><div class="code-hd"><span>' + esc(b.lang) + '</span><button class="code-copy" data-cid="' + cid + '">코드 복사</button></div><div class="code-bd"><pre id="' + cid + '">' + esc(b.code) + '</pre></div></div>';
       }
       case 'wokwi': return '<div class="blk"><a class="link-card wokwi" href="https://wokwi.com/projects/new/arduino-uno" target="_blank" rel="noopener"><div class="l-icon">🔧</div><div class="l-info"><h4>Wokwi 시뮬레이터로 직접 실습해 보기 ↗</h4><p>새 탭으로 시뮬레이터를 열어두고, 아래 코드를 하나씩 복사해 붙여넣은 뒤 ▶ 버튼으로 실행해 보세요.</p></div></a></div>';
-      case 'videos': return '<div class="blk"><p>이번 차시의 핵심 내용을 짧은 영상 ' + VIDS.length + '편으로 먼저 만나 봅시다. 영상을 보고 다음 쪽 <b>생각해요</b>로 넘어가세요.</p></div><div class="vid-grid">' +
+      case 'videos': return '<div class="blk"><p>이번 차시 수업에서 활용하는 영상 ' + VIDS.length + '편입니다. <b>선생님 안내에 따라</b> 필요한 영상을 열어 보세요. 수업 중 언제든 왼쪽 메뉴 맨 위 <b>🎬 이 차시 영상 모음</b>에서 다시 볼 수 있어요.</p></div><div class="vid-grid">' +
         VIDS.map(function (v, i) { return '<div class="vid-card' + (S.videos[v] ? ' seen' : '') + '"><div class="vid-thumb" data-vid="' + v + '" style="background-image:url(https://i.ytimg.com/vi/' + v + '/hqdefault.jpg)"><span class="vid-play">▶</span></div><div class="vid-cap"><b>🎬 영상 ' + (i + 1) + '</b><span class="vid-seen">✓ 시청함</span><a href="https://youtu.be/' + v + '" target="_blank" rel="noopener" data-vlink="' + v + '">유튜브에서 보기 ↗</a></div></div>'; }).join('') +
         '</div>' + (location.protocol === 'file:' ? '<p class="muted small">※ 파일로 열면 유튜브 새 탭에서 재생됩니다.</p>' : '');
       case 'report': return reportHTML();
